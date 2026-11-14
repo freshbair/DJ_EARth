@@ -1,13 +1,43 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="script.js" defer></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DJ_EARth · First sound test</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
 </head>
 <body>
+  <main>
+    <p class="eyebrow">DJ_EARth / BRIGHTNESS PIANO</p>
+    <h1>Play the light.</h1>
+    <p class="intro">From shadow to shine. Each brightness range has its own piano key.</p>
 
+    <section class="instrument" aria-label="Brightness piano">
+      <div class="piano-heading"><span>DIM / LOW NOTES</span><span>BRIGHT / HIGH NOTES</span></div>
+      <div id="piano" class="piano" aria-label="Playable piano keys"></div>
+      <p class="keyboard-hint">Click a key or use A S D F G H J on your keyboard.</p>
+    </section>
+
+    <div id="swatch" aria-hidden="true"></div>
+
+    <label for="brightness">Brightness</label>
+    <input id="brightness" type="range" min="0" max="255" value="0">
+    <p><output id="reading" for="brightness"></output></p>
+
+    <button id="play" type="button">Play note</button>
+    <h2>Let Earth choose the key.</h2>
+<p>Upload an image, then tap a location. Its pixel brightness selects and plays a piano key.</p>
+<label for="imageFile">Choose a NASA image (PNG or JPG)</label>
+<input id="imageFile" type="file" accept="image/png,image/jpeg">
+
+<p id="imageHint" aria-live="polite">Choose an image to begin.</p>
+<canvas id="earthImage" tabindex="0" hidden
+        aria-label="Earth image sampler"
+        aria-describedby="imageHint"
+        style="max-width: 100%; height: auto; cursor: crosshair;">
+</canvas>
+    <p class="disclaimer">Image brightness is a musical input here, not a calibrated measurement of night-light intensity.</p>
+  </main>
 </body>
 </html>
