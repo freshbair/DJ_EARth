@@ -3,41 +3,81 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DJ_EARth · Brightness to sound</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="script.js" defer></script>
+  <title>DJ_EARth · Night lights to piano</title>
+  <link rel="stylesheet" href="style.css?v=high-do-2">
+  <script src="light-track.js?v=high-do-2" defer></script>
+  <script src="piano.js?v=high-do-2" defer></script>
+  <script src="script.js?v=high-do-2" defer></script>
 </head>
 <body>
-  <main>
-    <p class="eyebrow">DJ_EARth / SMALL TEST</p>
-    <h1>Brightness → sound</h1>
-    <p>One brightness value controls two sound parameters: pitch and amplitude.</p>
+  <main class="app">
+    <header class="header">
+      <p class="eyebrow">DJ_EARth / FIRST TRACK</p>
+      <h1>Hear the night lights.</h1>
+      <p class="intro">Eight places, eight piano notes. Scan an image from left to right and hear its brightness.</p>
+      <span class="track-tag">Nighttime light intensity → piano</span>
+    </header>
 
-    <div id="swatch" aria-hidden="true"></div>
-    <div class="brightness-label">
-      <label for="brightness">Brightness</label>
-      <output id="brightnessReading" for="brightness"></output>
-    </div>
-    <input id="brightness" type="range" min="0" max="255" step="1" value="128">
-    <div class="range-labels" aria-hidden="true"><span>Dark</span><span>Bright</span></div>
-
-    <div class="parameters">
-      <div>
-        <h2>Pitch</h2>
-        <output id="pitchReading" for="brightness"></output>
-        <p>How high the sound is</p>
+    <section class="panel source-panel" aria-labelledby="sourceTitle">
+      <div class="section-heading">
+        <div><h2 id="sourceTitle">Test pattern</h2><p id="sourceMeta">Eight grayscale blocks · 0, 48, 88, 128, 168, 208, 255, 0</p></div>
+        <div class="source-actions">
+          <label class="upload-button">Upload NASA night-lights image
+            <input id="imageUpload" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg">
+          </label>
+          <button id="resetPattern" class="secondary" type="button">Use test pattern</button>
+        </div>
       </div>
-      <div>
-        <h2>Amplitude</h2>
-        <output id="amplitudeReading" for="brightness"></output>
-        <p>Relative sound level</p>
+      <div class="image-stage">
+        <canvas id="sourceCanvas" width="800" height="160" role="img" aria-label="Current image; eight scan locations are available as numbered buttons"></canvas>
+        <div class="scan-line" aria-hidden="true"></div>
+        <div id="spotOverlay" class="spot-overlay" role="group" aria-label="Preview a location on the image"></div>
       </div>
-    </div>
+      <div id="scanRoute" class="scan-route" role="group" aria-label="Eight scan locations, left to right"></div>
+      <p class="helper">Each spot samples the center of one eighth of the image, on its middle row. Click a numbered spot or its note below to preview it.</p>
+      <p id="patternNote" class="helper">The test phrase ends on high Do (C5), one octave above the first Do (C4). This is a musical ending for the test pattern; uploaded images follow brightness only.</p>
+    </section>
 
-    <button id="play" type="button" aria-pressed="false">Start sound</button>
-    <p id="audioStatus" role="status">Sound off. Start sound, then move the slider.</p>
-    <p class="mapping">For this test: brightness 0–255 maps to pitch 220–880 Hz and amplitude 0–100%. Brighter means higher and louder; zero brightness is silent.</p>
-    <p class="mapping">This is a chosen mapping to sound, not a measurement of light frequency.</p>
+    <section class="panel controls-panel" aria-label="Scan and sound controls">
+      <div class="controls">
+        <div class="transport">
+          <button id="playScan" class="primary" type="button">Play scan</button>
+          <button id="stopScan" class="secondary" type="button" disabled>Stop</button>
+        </div>
+        <label class="volume-control"><span>Amplitude / volume</span><output id="volumeValue" for="volume">55%</output>
+          <input id="volume" type="range" min="0" max="100" value="55" aria-describedby="volumeHelp">
+        </label>
+        <fieldset class="pitch-modes">
+          <legend>Pitch mode</legend>
+          <label><input type="radio" name="pitchMode" value="fixed" checked>Fixed scale</label>
+          <label><input type="radio" name="pitchMode" value="learned">Learn from image</label>
+        </fieldset>
+      </div>
+      <p id="volumeHelp" class="helper">Volume changes loudness only. Black pixels still play Do; only fully transparent pixels are rests. One spot plays every 0.5 seconds.</p>
+    </section>
+
+    <section class="panel readout-panel" aria-label="Current scan location">
+      <div class="live-readout">
+        <div><span class="label">Brightness / 255</span><output id="activeBrightness">—</output></div>
+        <div><span class="label">Piano note</span><output id="activeNote">—</output></div>
+        <div><span class="label">Scan spot</span><output id="scanPosition">— / 8</output></div>
+      </div>
+      <p id="status" role="status">Ready. Play the test pattern or preview a spot.</p>
+    </section>
+
+    <section class="panel" id="learningPanel" aria-labelledby="learningTitle">
+      <h2 id="learningTitle">What the image model learned</h2>
+      <p id="learningSummary"></p>
+      <ol id="groupCenters" class="group-centers" aria-label="Learned brightness centers, dark to bright"></ol>
+      <p class="helper">One-dimensional k-means learns up to seven brightness groups from a sample of this image. Groups run from dark to bright across Do–Si. A uniform image has one group: Do. These groups affect pitch only in “Learn from image” mode.</p>
+    </section>
+    <div id="testResult" class="test-result" role="status"></div>
+    <footer class="footer">
+      <p>Fixed scale: floor(brightness × 7 / 256) → Do, Ré, Mi, Fa, Sol, La, Si (C4–B4). Brightness = round(0.2126R + 0.7152G + 0.0722B).</p>
+      <p>Image brightness is a musical input, not a calibrated measurement of emitted light. Your upload stays in this browser. The piano is synthesized locally.</p>
+      <a href="tests.html">Run the automated checks</a>
+    </footer>
+    <noscript><p>Enable JavaScript to render the test pattern and play the scan.</p></noscript>
   </main>
 </body>
 </html>
