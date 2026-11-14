@@ -1,0 +1,96 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>DJ_EARth live playback checks</title>
+<h1>Live playback checks</h1>
+<p><a href="index.html">Back to DJ_EARth</a></p>
+<pre id="results">Running...</pre>
+<div id="fixture" hidden></div>
+<script src="instruments.js"></script>
+<script>
+  const fixture = document.querySelector('#fixture');
+  fixture.innerHTML = '<select id="soloInstrument"></select><input id="soloValue" value="50"><input id="volume" value="55">';
+  for (const id of ['soloStatus', 'soloValueLabel', 'soloValueHelp', 'soloNote', 'soloSingle', 'soloPhrase', 'soloStop', 'trackImagePanel', 'trackImage', 'trackImageError', 'trackImageTitle', 'trackImageMeta', 'trackImageSource', 'trackImageCaption', 'trackEyebrow', 'soloTitle', 'soloAssignment', 'trackHeading', 'trackIntro', 'trackTag']) {
+    const element = document.createElement('button'); element.id = id; fixture.append(element);
+  }
+  for (let index = 0; index < 8; index++) {
+    const button = document.createElement('button'); button.dataset.trackIndex = index; fixture.append(button);
+  }
+  const pending = new Map();
+  let timerId = 0;
+  window.setTimeout = (callback, delay) => { pending.set(++timerId, { callback, delay }); return timerId; };
+  window.clearTimeout = id => pending.delete(id);
+  const sounds = new Map();
+  window.DJEarthInstruments = {
+    assignments: DJEarthInstruments.assignments,
+    createInstrument(id) {
+      const voice = { notes: [], stops: 0, ready: async () => {}, setVolume() {}, play(hz) { this.notes.push(hz); }, stopAll() { this.stops++; } };
+      sounds.set(id, voice); return voice;
+    }
+  };
+  window.djEarthApp = { stop() {}, setTrack() {} };
+</script>
+<script src="solo.js"></script>
+<script>
+  (async () => {
+    const results = [];
+    function assert(condition, message) { if (!condition) throw new Error(message); }
+    const click = id => document.querySelector('#' + id).click();
+    const slider = document.querySelector('#soloValue');
+    const change = value => { slider.value = value; slider.dispatchEvent(new Event('input')); };
+    const flush = async () => { await Promise.resolve(); await Promise.resolve(); };
+    try {
+      for (let index = 0; index < 8; index++) {
+        document.querySelector(`[data-track-index="${index}"]`).click();
+        change(0); click('soloNote'); await flush();
+        const voice = sounds.get(DJEarthInstruments.assignments[index].id);
+        assert(voice.notes.length === 1, 'Live mode starts with one note');
+        assert(pending.size === 1, 'Only one repeat timer exists');
+        const lowNote = voice.notes[0];
+        const lowDelay = [...pending.values()][0].delay;
+        const originalTimer = [...pending.keys()][0];
+        change(100);
+        assert(pending.size === 1, 'Slider keeps a single timer');
+        if (index === 5) {
+          assert(lowDelay === 1000, 'Minimum wind is 60 BPM');
+          assert([...pending.values()][0].delay <= 250, 'Maximum wind is 240 BPM');
+          assert(document.querySelector('#soloValueLabel').textContent.includes('240 BPM'), 'Tempo is visible');
+          assert(voice.notes.length === 1, 'Tempo adjustment preserves beat phase');
+        } else {
+          assert(voice.notes.at(-1) > lowNote, 'Slider raises pitch immediately');
+          assert([...pending.keys()][0] === originalTimer, 'Pitch changes do not restart the playback clock');
+          assert([...pending.values()][0].delay === 500, 'Melodic instruments keep their fixed pace');
+          assert(!document.querySelector('#soloValueLabel').textContent.includes('BPM'), 'Only drums display BPM');
+        }
+        const [id, task] = [...pending.entries()][0]; pending.delete(id); task.callback();
+        assert(pending.size === 1, 'Playback repeats');
+        click('soloStop');
+        assert(pending.size === 0, 'Stop clears playback');
+        assert(document.querySelector('#soloNote').getAttribute('aria-pressed') === 'false', 'Play state resets');
+        const beforeSingle = voice.notes.length;
+        click('soloSingle'); await flush();
+        assert(voice.notes.length === beforeSingle + 1, 'Play note triggers exactly one sound');
+        assert(document.querySelector('#soloNote').getAttribute('aria-pressed') === 'false', 'Single note is not live mode');
+        change(50);
+        assert(voice.notes.length === beforeSingle + 1, 'Slider is silent in single note mode');
+        const [finishId, finish] = [...pending.entries()][0]; pending.delete(finishId); finish.callback();
+        assert(pending.size === 0, 'Single note finishes without repeating');
+        click('soloNote'); await flush();
+        click('soloSingle'); await flush();
+        const afterSwitch = voice.notes.length;
+        const [endId, end] = [...pending.entries()][0]; pending.delete(endId); end.callback();
+        assert(pending.size === 0 && voice.notes.length === afterSwitch, 'Switching from live to single stops the loop');
+        results.push('PASS: ' + DJEarthInstruments.assignments[index].instrument + ' live and single note playback');
+      }
+      click('soloNote'); click('soloStop'); await flush();
+      assert(pending.size === 0, 'Stop during audio startup cancels playback');
+      click('soloPhrase'); await flush();
+      assert(pending.size === 1, 'Phrase starts');
+      document.querySelector('[data-track-index="0"]').click();
+      assert(pending.size === 0, 'Track switch stops phrase');
+      results.push('PASS: startup cancellation and track switching');
+      document.querySelector('#results').textContent = results.join('\n') + '\nAll checks passed.';
+    } catch (error) {
+      document.querySelector('#results').textContent = results.join('\n') + '\nFAIL: ' + error.message;
+    }
+  })();
+</script>

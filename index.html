@@ -11,7 +11,7 @@
   <script src="bass.js?v=temp-1" defer></script>
   <script src="instruments.js?v=solo-1" defer></script>
   <script src="script.js?v=solo-1" defer></script>
-  <script src="solo.js?v=track-images-1" defer></script>
+  <script src="solo.js?v=single-note-1" defer></script>
 </head>
 <body>
   <main class="app">
@@ -66,12 +66,14 @@
 
     <section class="panel" aria-labelledby="soloTitle">
       <h2 id="soloTitle">Test each parameter alone</h2>
-      <p>Select a track above, adjust its demo value, then play a sound or an eight-step phrase. These are synthesized instrument previews; demo values are not live Earth measurements.</p>
+      <p>Select a track and use Play note for one sound at the current slider value, or Play live to keep playing while you adjust it. These are synthesized instrument previews; demo values are not live Earth measurements.</p>
       <select id="soloInstrument" aria-label="Selected track instrument" hidden></select>
       <p id="soloAssignment" class="track-tag">Temperature &rarr; Harmonica</p>
-      <label>Demo value <output id="soloValueLabel">50%</output><input id="soloValue" type="range" min="0" max="100" value="50"></label>
+      <label>Demo value <output id="soloValueLabel" for="soloValue">50%</output><input id="soloValue" type="range" min="0" max="100" value="50" aria-describedby="soloValueHelp"></label>
+      <p id="soloValueHelp" class="helper">Press Play live, then move the slider to hear the pitch change.</p>
       <div class="source-actions">
-        <button id="soloNote" type="button">Play value</button>
+        <button id="soloNote" type="button" aria-pressed="false">Play live</button>
+        <button id="soloSingle" type="button">Play note</button>
         <button id="soloPhrase" type="button">Play test phrase</button>
         <button id="soloStop" type="button">Stop solo</button>
       </div>
@@ -163,6 +165,7 @@
       <p id="footerScaleExplanation">Temperature track: Navy (0) → Blue (1) → Cyan (2) → Green (3) → Yellow (4) → Red (5) → Maroon (6) maps to Do, Ré, Mi, Fa, Sol, La, Si. The higher the temperature, the higher the pitch.</p>
       <p>Sonification uses local Web Audio API synthesis without external dependencies. Uploaded images remain private in your browser.</p>
       <a href="tests.html">Run the automated checks</a>
+      <a href="tests-live.html">Run live playback checks</a>
     </footer>
     <noscript><p>Enable JavaScript to render the image and play the scan.</p></noscript>
   </main>

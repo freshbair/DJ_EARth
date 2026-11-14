@@ -7,6 +7,19 @@
   const voices = new Map();
   let ticket = 0;
   let timer;
+  let live = false;
+  let updateLive;
+  const playButton = document.querySelector('#soloNote');
+  const bpmForValue = value => Math.round(60 + Number(value) * 1.8);
+  function updateReadout() {
+    const drums = bank.assignments[Number(select.value)].id === 'drums';
+    document.querySelector('#soloValueLabel').textContent = drums
+      ? `${slider.value}% wind - ${bpmForValue(slider.value)} BPM`
+      : `${slider.value}%`;
+    document.querySelector('#soloValueHelp').textContent = drums
+      ? 'Higher wind speed makes the beat faster: 60-240 BPM. Move the slider while playing to change tempo.'
+      : 'Move the slider to change pitch only. Playback pace stays fixed; BPM applies only to drums. Press Stop to finish.';
+  }
   bank.assignments.forEach((assignment, index) => {
     select.add(new Option(`${assignment.parameter} → ${assignment.instrument}`, index));
   });
@@ -78,6 +91,7 @@
     if (demo) global.djEarthApp.setTrack('light');
     global.djEarthApp.stop('Ready to test the selected track.');
     select.value = String(index);
+    updateReadout();
     document.body.classList.toggle('demo-track', demo);
     showTrackImage(index);
     trackButtons.forEach(tab => {
@@ -88,7 +102,7 @@
     document.querySelector('#trackEyebrow').textContent = `DJ_EARth / TRACK ${index + 1}`;
     document.querySelector('#soloTitle').textContent = `Test ${assignment.parameter.toLowerCase()} alone`;
     document.querySelector('#soloAssignment').textContent = `${assignment.parameter} → ${assignment.instrument}`;
-    status.textContent = `${assignment.instrument} ready. Play a value or test phrase.`;
+    status.textContent = `${assignment.instrument} ready. Press Play live and move the slider, or play a test phrase.`;
     if (demo) {
       document.querySelector('#trackHeading').textContent = `Hear the Earth's ${assignment.parameter.toLowerCase()}.`;
       document.querySelector('#trackIntro').textContent = `Test ${assignment.parameter.toLowerCase()} with ${assignment.instrument.toLowerCase()}. Adjust the demo value or play an eight-step phrase to hear this track on its own.`;
@@ -98,10 +112,14 @@
   function stop() {
     ticket++;
     clearTimeout(timer);
+    live = false;
+    updateLive = undefined;
+    playButton.setAttribute('aria-pressed', 'false');
     voices.forEach(voice => voice.stopAll());
     status.textContent = 'Solo stopped. Ready to test another value or instrument.';
   }
-  async function play(phrase) {
+  async function play(playbackMode) {
+    const phrase = playbackMode === 'phrase';
     stop();
     global.djEarthApp.stop('Map scan stopped for solo instrument test.');
     const run = ticket;
@@ -112,9 +130,69 @@
       voices.set(assignment.id, voice);
     }
     voice.setVolume(Number(document.querySelector('#volume').value) / 100);
+    live = playbackMode === 'live';
+    playButton.setAttribute('aria-pressed', String(live));
     try {
       await voice.ready();
       if (run !== ticket) return;
+      if (live) {
+        let beat = 0;
+        let lastBeat = 0;
+        let interval = 500;
+        function playMelody() {
+          const intervals = [0, 2, 4, 5, 7, 9, 11, 12];
+          const midi = (assignment.octave + 1) * 12 + intervals[Math.round(Number(slider.value) * 7 / 100)];
+          voice.play(440 * 2 ** ((midi - 69) / 12));
+        }
+        function showLiveStatus() {
+          status.textContent = `${assignment.parameter} - ${assignment.instrument}: ${slider.value}%${assignment.id === 'drums' ? ` - ${bpmForValue(slider.value)} BPM` : ''}. Playing live; move the slider to change the sound.`;
+        }
+        function tick() {
+          if (run !== ticket) return;
+          try {
+            const value = Number(slider.value);
+            if (assignment.id === 'drums') {
+              // A stable kick/snare pattern; wind changes tempo, not drum type.
+              voice.play(beat++ % 2 === 0 ? 65 : 110);
+              lastBeat = performance.now();
+              interval = 60000 / bpmForValue(value);
+            } else {
+              playMelody();
+              interval = 500;
+            }
+            showLiveStatus();
+            timer = setTimeout(tick, interval);
+          } catch (error) {
+            stop();
+            status.textContent = `Audio could not play: ${error.message}`;
+          }
+        }
+        updateLive = () => {
+          if (run !== ticket) return;
+          if (assignment.id === 'drums') {
+            clearTimeout(timer);
+            // Preserve progress through the beat when its duration changes.
+            const now = performance.now();
+            const progress = Math.min(1, Math.max(0, (now - lastBeat) / interval));
+            interval = 60000 / bpmForValue(slider.value);
+            lastBeat = now - progress * interval;
+            timer = setTimeout(tick, (1 - progress) * interval);
+            showLiveStatus();
+          } else {
+            // Preview the new pitch without restarting the fixed repeat clock.
+            try {
+              voice.stopAll();
+              playMelody();
+              showLiveStatus();
+            } catch (error) {
+              stop();
+              status.textContent = `Audio could not play: ${error.message}`;
+            }
+          }
+        };
+        tick();
+        return;
+      }
       const values = phrase ? [0, 14, 29, 43, 57, 71, 86, 100] : [Number(slider.value)];
       let index = 0;
       const intervals = [0, 2, 4, 5, 7, 9, 11, 12];
@@ -123,9 +201,9 @@
         const value = values[index++];
         const semitone = intervals[Math.round(value * 7 / 100)];
         const midi = (assignment.octave + 1) * 12 + semitone;
-        voice.play(440 * 2 ** ((midi - 69) / 12));
-        status.textContent = `${assignment.parameter} → ${assignment.instrument}: demo value ${value}%${assignment.id === 'drums' ? ' (kick / snare / hi-hat)' : ''}.`;
-        if (index < values.length) timer = setTimeout(step, 500);
+        voice.play(assignment.id === 'drums' ? (index % 2 === 1 ? 65 : 110) : 440 * 2 ** ((midi - 69) / 12));
+        status.textContent = `${assignment.parameter} → ${assignment.instrument}: demo value ${value}%${assignment.id === 'drums' ? ` - ${bpmForValue(value)} BPM` : ''}.`;
+        if (index < values.length) timer = setTimeout(step, assignment.id === 'drums' ? 60000 / bpmForValue(value) : 500);
         else timer = setTimeout(() => {
           if (run === ticket) { stop(); status.textContent = `${assignment.instrument} test complete.`; }
         }, 1100);
@@ -136,9 +214,13 @@
     }
   }
   select.addEventListener('change', stop);
-  slider.addEventListener('input', () => { document.querySelector('#soloValueLabel').textContent = `${slider.value}%`; });
-  document.querySelector('#soloNote').addEventListener('click', () => { void play(false); });
-  document.querySelector('#soloPhrase').addEventListener('click', () => { void play(true); });
+  slider.addEventListener('input', () => {
+    updateReadout();
+    if (live) updateLive?.();
+  });
+  document.querySelector('#soloNote').addEventListener('click', () => { void play('live'); });
+  document.querySelector('#soloSingle').addEventListener('click', () => { void play('single'); });
+  document.querySelector('#soloPhrase').addEventListener('click', () => { void play('phrase'); });
   document.querySelector('#soloStop').addEventListener('click', stop);
   document.querySelector('#volume').addEventListener('input', event => {
     voices.forEach(voice => voice.setVolume(Number(event.target.value) / 100));
@@ -146,4 +228,5 @@
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
   global.addEventListener('pagehide', stop);
   global.djEarthSolo = Object.freeze({ stop });
+  updateReadout();
 })(globalThis);
