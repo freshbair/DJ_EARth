@@ -61,8 +61,15 @@
     return { piano, context: FakeAudioContext.instances.at(-1) };
   }
 
+  async function bassFixture(volume = 0.55) {
+    const bass = root.createDJEarthBass({ AudioContext: FakeAudioContext, volume });
+    await bass.ready();
+    return { bass, context: FakeAudioContext.instances.at(-1) };
+  }
+
   async function runDJEarthTests() {
     const light = root.DJEarthLight;
+    const tempTrack = root.DJEarthTemperature;
     const results = [];
     async function test(name, fn) {
       try { await fn(); results.push({ name, passed: true }); }
@@ -212,6 +219,110 @@
       });
       assert(context.tones.every(tone => tone.stops[0] > context.currentTime && tone.stops[0] <= context.currentTime + 1), 'Note duration is unbounded.');
       piano.stopAll();
+    });
+
+    /* --- Temperature Track & Bass Synthesizer Checks --- */
+
+    await test('Temperature: Reference thermal colors map to 0 to 6 ticks', () => {
+      assert(tempTrack, 'DJEarthTemperature module missing.');
+      const t0 = tempTrack.temperatureFromRGB(7, 11, 141);
+      const t1 = tempTrack.temperatureFromRGB(10, 63, 255);
+      const t2 = tempTrack.temperatureFromRGB(21, 255, 254);
+      const t3 = tempTrack.temperatureFromRGB(95, 253, 160);
+      const t4 = tempTrack.temperatureFromRGB(253, 240, 22);
+      const t5 = tempTrack.temperatureFromRGB(252, 46, 22);
+      const t6 = tempTrack.temperatureFromRGB(127, 16, 9);
+      assert(Math.round(t0) === 0, `Navy mapped to ${t0}`);
+      assert(Math.round(t1) === 1, `Blue mapped to ${t1}`);
+      assert(Math.round(t2) === 2, `Cyan mapped to ${t2}`);
+      assert(Math.round(t3) === 3, `Green mapped to ${t3}`);
+      assert(Math.round(t4) === 4, `Yellow mapped to ${t4}`);
+      assert(Math.round(t5) === 5, `Red mapped to ${t5}`);
+      assert(Math.round(t6) === 6, `Maroon mapped to ${t6}`);
+    });
+
+    await test('Higher temperature strictly maps to higher pitch (The higher the temperature, the higher the pitch)', () => {
+      const notes = [0, 1, 2, 3, 4, 5, 6].map(t => tempTrack.pitchForTemperature(t, 'fixed', [], 'bass'));
+      assert(notes.map(n => n.name).join(',') === 'Do,Ré,Mi,Fa,Sol,La,Si', 'Temperature note scale incorrect.');
+      assert(notes.map(n => n.pitch).join(',') === 'C3,D3,E3,F3,G3,A3,B3', 'Bass pitch octave incorrect.');
+      for (let i = 0; i < notes.length - 1; i++) {
+        assert(notes[i + 1].hz > notes[i].hz, `Pitch at T=${i + 1} (${notes[i + 1].hz} Hz) not higher than T=${i} (${notes[i].hz} Hz).`);
+      }
+    });
+
+    await test('Temperature test pattern: Do → Ré → Mi → Fa → Sol → La → Si → High Do', () => {
+      const spots = tempTrack.scanSpots(tempTrack.createTestPattern());
+      assert(spots.length === 8, 'Expected 8 spots.');
+      for (const inst of ['bass', 'piano']) {
+        const notes = spots.map(spot => tempTrack.pitchForSpot(spot, 'fixed', [], true, inst));
+        const expectedNotes = 'Do,Ré,Mi,Fa,Sol,La,Si,Do';
+        assert(notes.map(n => n.name).join(',') === expectedNotes, `${inst} test pattern notes incorrect.`);
+        const expectedPitches = inst === 'bass'
+          ? 'C3,D3,E3,F3,G3,A3,B3,C4'
+          : 'C4,D4,E4,F4,G4,A4,B4,C5';
+        assert(notes.map(n => n.pitch).join(',') === expectedPitches, `${inst} test pattern pitches incorrect.`);
+        near(notes[7].hz, notes[0].hz * 2);
+      }
+    });
+
+    await test('Phrase ending never changes uploaded cold pixels or transparent rests in temperature track', () => {
+      const coldSpot = { index: 7, temperature: 0, rest: false };
+      assert(tempTrack.pitchForSpot(coldSpot, 'fixed', [], false, 'bass').pitch === 'C3', 'Uploaded cold pixel was transposed.');
+      assert(tempTrack.pitchForSpot(coldSpot, 'fixed', [], false, 'piano').pitch === 'C4', 'Uploaded cold pixel was transposed in piano.');
+      assert(tempTrack.pitchForSpot({ ...coldSpot, rest: true }, 'fixed', [], true, 'bass') === null, 'Transparent rest played high Do.');
+    });
+
+    await test('Off-map white background and transparent pixels are detected as rests', () => {
+      const transparent = tempTrack.scanSpots(image(8, 1, () => [255, 255, 255, 0]));
+      assert(transparent.every(s => s.rest), 'Transparent pixels not marked as rest.');
+      const offMapWhite = tempTrack.scanSpots(image(8, 1, () => [253, 255, 254, 255]));
+      assert(offMapWhite.every(s => s.rest), 'Off-map white pixels not marked as rest.');
+    });
+
+    await test('Grayscale / infrared images map brightness linearly to temperature 0..6', () => {
+      const coldGray = tempTrack.temperatureFromRGB(0, 0, 0);
+      const midGray = tempTrack.temperatureFromRGB(128, 128, 128);
+      const hotGray = tempTrack.temperatureFromRGB(255, 255, 255);
+      near(coldGray, 0, 0.05);
+      near(midGray, 3.01, 0.05);
+      near(hotGray, 6.0, 0.05);
+    });
+
+    await test('Deterministic 1D k-means temperature clustering sorts cold to hot', () => {
+      const pattern = tempTrack.createTestPattern();
+      const centers = tempTrack.learnTemperatureGroups(pattern);
+      assert(centers.length === 7, 'Expected 7 centers.');
+      for (let i = 0; i < centers.length - 1; i++) {
+        assert(centers[i + 1] > centers[i], 'Centers are not strictly ascending.');
+      }
+      assert(Math.round(centers[0]) === 0 && Math.round(centers[6]) === 6, 'Centers do not cover 0 to 6.');
+    });
+
+    await test('Earth bass audio initializes lazily on ready()', async () => {
+      const before = FakeAudioContext.instances.length;
+      const bass = root.createDJEarthBass({ AudioContext: FakeAudioContext });
+      assert(FakeAudioContext.instances.length === before, 'Bass audio started during construction.');
+      await bass.ready();
+      assert(FakeAudioContext.instances.length === before + 1 && FakeAudioContext.instances.at(-1).state === 'running', 'Bass audio was not readied.');
+      bass.stopAll();
+    });
+
+    await test('A 130.8 Hz bass note synthesizes fundamental, triangle sub, and harmonics', async () => {
+      const { bass, context } = await bassFixture();
+      bass.play(130.8);
+      const freqs = context.tones.map(tone => Math.round(tone.frequency.value));
+      assert(freqs.includes(131), 'Fundamental 130.8 Hz missing.');
+      assert(freqs.includes(262), 'Second harmonic 261.6 Hz missing.');
+      bass.stopAll();
+    });
+
+    await test('Bass stopAll silences all voices and releases nodes', async () => {
+      const { bass, context } = await bassFixture(0.5);
+      bass.play(130.8);
+      bass.play(196.0);
+      bass.stopAll();
+      assert(context.gains.slice(1).every(node => node.gain.value === 0 && node.disconnected), 'Bass envelope remains audible.');
+      assert(context.tones.every(tone => tone.disconnected), 'Bass tone was not disconnected.');
     });
 
     return results;

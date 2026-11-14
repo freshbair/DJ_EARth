@@ -3,39 +3,57 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DJ_EARth · Night lights to piano</title>
-  <link rel="stylesheet" href="style.css?v=high-do-2">
-  <script src="light-track.js?v=high-do-2" defer></script>
-  <script src="piano.js?v=high-do-2" defer></script>
-  <script src="script.js?v=high-do-2" defer></script>
+  <title>DJ_EARth · Earth temperature &amp; night lights to sound</title>
+  <link rel="stylesheet" href="style.css?v=temp-1">
+  <script src="light-track.js?v=temp-1" defer></script>
+  <script src="temperature-track.js?v=temp-1" defer></script>
+  <script src="piano.js?v=temp-1" defer></script>
+  <script src="bass.js?v=temp-1" defer></script>
+  <script src="script.js?v=temp-1" defer></script>
 </head>
 <body>
   <main class="app">
     <header class="header">
-      <p class="eyebrow">DJ_EARth / FIRST TRACK</p>
-      <h1>Hear the night lights.</h1>
-      <p class="intro">Eight places, eight piano notes. Scan an image from left to right and hear its brightness.</p>
-      <span class="track-tag">Nighttime light intensity → piano</span>
+      <nav class="track-nav" aria-label="Select planetary track">
+        <button id="trackTempBtn" class="track-tab active" type="button" aria-pressed="true">
+          <span class="track-tab-badge">TRACK 2</span>
+          <span class="track-tab-name">🌡️ Earth Temperature</span>
+          <span class="track-tab-desc">Thermal map → bass / piano</span>
+        </button>
+        <button id="trackLightBtn" class="track-tab" type="button" aria-pressed="false">
+          <span class="track-tab-badge">TRACK 1</span>
+          <span class="track-tab-name">💡 Night Lights</span>
+          <span class="track-tab-desc">Brightness → piano</span>
+        </button>
+      </nav>
+      <p id="trackEyebrow" class="eyebrow">DJ_EARth / SECOND TRACK</p>
+      <h1 id="trackHeading">Hear the Earth’s temperature.</h1>
+      <p id="trackIntro" class="intro">Eight places, eight notes. Scan the thermal map from left to right and hear planetary temperature variation. The higher the temperature, the higher the pitch.</p>
+      <span id="trackTag" class="track-tag">Temperature variation → Earth bass · Higher temperature = higher pitch</span>
     </header>
 
     <section class="panel source-panel" aria-labelledby="sourceTitle">
       <div class="section-heading">
-        <div><h2 id="sourceTitle">Test pattern</h2><p id="sourceMeta">Eight grayscale blocks · 0, 48, 88, 128, 168, 208, 255, 0</p></div>
+        <div>
+          <h2 id="sourceTitle">Earth thermal map</h2>
+          <p id="sourceMeta">Global planetary temperature variation · 8 spots · 0.5s per spot</p>
+        </div>
         <div class="source-actions">
-          <label class="upload-button">Upload NASA night-lights image
+          <label id="uploadLabel" class="upload-button">Upload temperature map
             <input id="imageUpload" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg">
           </label>
+          <button id="useEarthMap" class="secondary" type="button">Use Earth thermal map</button>
           <button id="resetPattern" class="secondary" type="button">Use test pattern</button>
         </div>
       </div>
-      <div class="image-stage">
+      <div class="image-stage" id="imageStage">
         <canvas id="sourceCanvas" width="800" height="160" role="img" aria-label="Current image; eight scan locations are available as numbered buttons"></canvas>
         <div class="scan-line" aria-hidden="true"></div>
         <div id="spotOverlay" class="spot-overlay" role="group" aria-label="Preview a location on the image"></div>
       </div>
       <div id="scanRoute" class="scan-route" role="group" aria-label="Eight scan locations, left to right"></div>
-      <p class="helper">Each spot samples the center of one eighth of the image, on its middle row. Click a numbered spot or its note below to preview it.</p>
-      <p id="patternNote" class="helper">The test phrase ends on high Do (C5), one octave above the first Do (C4). This is a musical ending for the test pattern; uploaded images follow brightness only.</p>
+      <p id="routeHelper" class="helper">Each spot samples one location across the map. Click any numbered spot, note card, or anywhere on the map to preview its temperature and pitch.</p>
+      <p id="patternNote" class="helper">The test phrase ends on high Do, one octave above the first Do. This is a musical ending for the test pattern; uploaded images follow temperature only.</p>
     </section>
 
     <section class="panel controls-panel" aria-label="Scan and sound controls">
@@ -52,32 +70,39 @@
           <label><input type="radio" name="pitchMode" value="fixed" checked>Fixed scale</label>
           <label><input type="radio" name="pitchMode" value="learned">Learn from image</label>
         </fieldset>
+        <fieldset class="pitch-modes" id="instrumentFieldset">
+          <legend>Instrument</legend>
+          <label><input type="radio" name="instrumentMode" value="bass" checked>Earth Bass (C3–C4)</label>
+          <label><input type="radio" name="instrumentMode" value="piano">Piano (C4–C5)</label>
+        </fieldset>
       </div>
-      <p id="volumeHelp" class="helper">Volume changes loudness only. Black pixels still play Do; only fully transparent pixels are rests. One spot plays every 0.5 seconds.</p>
+      <p id="volumeHelp" class="helper">Volume changes loudness only. Coldest temperatures still play Do; off-map background pixels are rests. One spot plays every 0.5 seconds.</p>
     </section>
 
     <section class="panel readout-panel" aria-label="Current scan location">
       <div class="live-readout">
-        <div><span class="label">Brightness / 255</span><output id="activeBrightness">—</output></div>
-        <div><span class="label">Piano note</span><output id="activeNote">—</output></div>
+        <div><span id="metricLabel" class="label">Temperature / 6</span><output id="activeBrightness">—</output></div>
+        <div><span class="label">Instrument note</span><output id="activeNote">—</output></div>
         <div><span class="label">Scan spot</span><output id="scanPosition">— / 8</output></div>
       </div>
-      <p id="status" role="status">Ready. Play the test pattern or preview a spot.</p>
+      <p id="status" role="status">Ready. Play the scan or preview a location.</p>
     </section>
 
     <section class="panel" id="learningPanel" aria-labelledby="learningTitle">
-      <h2 id="learningTitle">What the image model learned</h2>
+      <h2 id="learningTitle">What the model learned</h2>
       <p id="learningSummary"></p>
-      <ol id="groupCenters" class="group-centers" aria-label="Learned brightness centers, dark to bright"></ol>
-      <p class="helper">One-dimensional k-means learns up to seven brightness groups from a sample of this image. Groups run from dark to bright across Do–Si. A uniform image has one group: Do. These groups affect pitch only in “Learn from image” mode.</p>
+      <ol id="groupCenters" class="group-centers" aria-label="Learned centers, low to high"></ol>
+      <p id="learningHelper" class="helper">One-dimensional k-means learns up to seven groups from a sample of this image, ordered from low to high across Do–Si. In “Learn from image” mode, pitches align to these learned centers.</p>
     </section>
+
     <div id="testResult" class="test-result" role="status"></div>
+
     <footer class="footer">
-      <p>Fixed scale: floor(brightness × 7 / 256) → Do, Ré, Mi, Fa, Sol, La, Si (C4–B4). Brightness = round(0.2126R + 0.7152G + 0.0722B).</p>
-      <p>Image brightness is a musical input, not a calibrated measurement of emitted light. Your upload stays in this browser. The piano is synthesized locally.</p>
+      <p id="footerScaleExplanation">Temperature track: Navy (0) → Blue (1) → Cyan (2) → Green (3) → Yellow (4) → Red (5) → Maroon (6) maps to Do, Ré, Mi, Fa, Sol, La, Si. The higher the temperature, the higher the pitch.</p>
+      <p>Sonification uses local Web Audio API synthesis without external dependencies. Uploaded images remain private in your browser.</p>
       <a href="tests.html">Run the automated checks</a>
     </footer>
-    <noscript><p>Enable JavaScript to render the test pattern and play the scan.</p></noscript>
+    <noscript><p>Enable JavaScript to render the image and play the scan.</p></noscript>
   </main>
 </body>
 </html>

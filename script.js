@@ -1,28 +1,59 @@
-/* App controller. Light analysis and piano synthesis live in separate files so
-   temperature → bass and lightning → guitar can later be separate tracks. */
+/* DJ_EARth App Controller
+   Supports both planetary tracks:
+   Track 1: Night lights (Brightness → piano)
+   Track 2: Earth Temperature (Temperature variation → bass / piano)
+*/
 (function (global) {
   'use strict';
   const light = global.DJEarthLight;
+  const tempTrack = global.DJEarthTemperature;
   const piano = global.createDJEarthPiano({ volume: 0.55 });
+  const bass = global.createDJEarthBass({ volume: 0.55 });
+
   const $ = selector => document.querySelector(selector);
   const canvas = $('#sourceCanvas');
   const context = canvas.getContext('2d');
+  const stage = $('#imageStage');
   const overlay = $('#spotOverlay');
   const route = $('#scanRoute');
   const playButton = $('#playScan');
   const stopButton = $('#stopScan');
   const upload = $('#imageUpload');
+  const uploadLabel = $('#uploadLabel');
   const volume = $('#volume');
   const status = $('#status');
-  const modes = document.querySelectorAll('input[name="pitchMode"]');
+  const resetPatternBtn = $('#resetPattern');
+  const useEarthMapBtn = $('#useEarthMap');
+  const trackTempBtn = $('#trackTempBtn');
+  const trackLightBtn = $('#trackLightBtn');
+  const instrumentFieldset = $('#instrumentFieldset');
+  const pitchModes = document.querySelectorAll('input[name="pitchMode"]');
+  const instrumentModes = document.querySelectorAll('input[name="instrumentMode"]');
+
   const STEP_MS = 500;
-  const RELEASE_MS = Math.ceil(piano.tailSeconds * 1000) + 30;
+  const RELEASE_MS = 1000;
+
+  // Preset 8 geographic spots across the Earth globe for earth-temperature.jpg
+  const EARTH_PRESET_SPOTS = [
+    { x: 95, y: 242, label: 'West Pacific' },
+    { x: 210, y: 242, label: 'East Pacific' },
+    { x: 325, y: 242, label: 'South America' },
+    { x: 440, y: 242, label: 'Atlantic' },
+    { x: 555, y: 242, label: 'Central Africa' },
+    { x: 670, y: 242, label: 'Indian Ocean' },
+    { x: 785, y: 242, label: 'Southeast Asia' },
+    { x: 880, y: 242, label: 'Western Pacific' }
+  ];
+
+  let currentTrack = 'temperature'; // 'temperature' | 'light'
+  let currentInstrument = 'bass';    // 'bass' | 'piano'
   let image;
-  let imageName = 'Test pattern';
+  let imageName = 'Earth thermal map';
   let spots = [];
   let centers = [];
-  let mode = 'fixed';
-  let isTestPattern = true;
+  let mode = 'fixed'; // 'fixed' | 'learned'
+  let isTestPattern = false;
+  let isEarthPreset = true;
   let run = 0;
   let timer;
   let activeIndex = -1;
@@ -30,7 +61,14 @@
   let imageRequest = 0;
   let loading = false;
 
+  function activeVoice() {
+    return currentInstrument === 'piano' ? piano : bass;
+  }
+
   function noteAt(spot) {
+    if (currentTrack === 'temperature') {
+      return tempTrack.pitchForSpot(spot, mode, centers, isTestPattern, currentInstrument);
+    }
     return light.pitchForSpot(spot, mode, centers, isTestPattern);
   }
 
@@ -49,10 +87,20 @@
     const spot = spots[index];
     const note = noteAt(spot);
     highlight(index);
-    $('#activeBrightness').textContent = spot.rest ? '—' : String(spot.brightness);
-    $('#activeNote').textContent = note ? `${note.name} · ${note.pitch} · ${note.hz.toFixed(1)} Hz` : 'Rest';
-    $('#scanPosition').textContent = `${index + 1} / 8`;
-    status.textContent = `Spot ${index + 1}: ${spot.rest ? 'fully transparent — rest' : `brightness ${spot.brightness}, ${note.name} (${note.pitch})`}.`;
+
+    if (currentTrack === 'temperature') {
+      const tempStr = spot.rest ? '—' : `${spot.temperature.toFixed(1)} · ${tempTrack.temperatureLabel(spot.temperature)}`;
+      $('#activeBrightness').textContent = tempStr;
+      $('#activeNote').textContent = note ? `${note.name} · ${note.pitch} · ${note.hz.toFixed(1)} Hz` : 'Rest';
+      $('#scanPosition').textContent = `${index + 1} / 8`;
+      const loc = spot.label ? ` (${spot.label})` : '';
+      status.textContent = `Spot ${index + 1}${loc}: ${spot.rest ? 'off-globe background — rest' : `temp ${spot.temperature.toFixed(1)} / 6 (${tempTrack.temperatureLabel(spot.temperature)}), ${note.name} (${note.pitch})`}.`;
+    } else {
+      $('#activeBrightness').textContent = spot.rest ? '—' : String(spot.brightness);
+      $('#activeNote').textContent = note ? `${note.name} · ${note.pitch} · ${note.hz.toFixed(1)} Hz` : 'Rest';
+      $('#scanPosition').textContent = `${index + 1} / 8`;
+      status.textContent = `Spot ${index + 1}: ${spot.rest ? 'fully transparent — rest' : `brightness ${spot.brightness}, ${note.name} (${note.pitch})`}.`;
+    }
     return note;
   }
 
@@ -60,6 +108,7 @@
     run++;
     clearTimeout(timer);
     piano.stopAll();
+    bass.stopAll();
     scanning = false;
     highlight(-1);
     stopButton.disabled = true;
@@ -72,15 +121,16 @@
     const ticket = run;
     scanning = true;
     stopButton.disabled = false;
+    const voice = activeVoice();
     try {
-      await piano.ready();
+      await voice.ready();
       if (ticket !== run) return;
       let index = 0;
       function step() {
         if (ticket !== run) return;
         try {
           const note = showSpot(index);
-          if (note) piano.play(note.hz);
+          if (note) voice.play(note.hz);
           index++;
           if (index < spots.length) timer = setTimeout(step, STEP_MS);
           else timer = setTimeout(() => {
@@ -102,11 +152,12 @@
     const ticket = run;
     const note = showSpot(index);
     stopButton.disabled = false;
+    const voice = activeVoice();
     try {
       if (note) {
-        await piano.ready();
+        await voice.ready();
         if (ticket !== run) return;
-        piano.play(note.hz);
+        voice.play(note.hz);
       }
       if (ticket !== run) return;
       timer = setTimeout(() => {
@@ -117,12 +168,67 @@
     }
   }
 
+  async function previewCoordinates(x, y) {
+    if (!image) return;
+    stopPlayback();
+    const voice = activeVoice();
+    const clampedX = Math.max(0, Math.min(image.width - 1, Math.round(x)));
+    const clampedY = Math.max(0, Math.min(image.height - 1, Math.round(y)));
+    const offset = (clampedY * image.width + clampedX) * 4;
+    const r = image.data[offset];
+    const g = image.data[offset + 1];
+    const b = image.data[offset + 2];
+    const a = image.data[offset + 3];
+
+    let note;
+    if (currentTrack === 'temperature') {
+      const rest = tempTrack.isRestPixel(r, g, b, a);
+      const temp = rest ? null : tempTrack.temperatureFromRGB(r, g, b);
+      note = rest ? null : tempTrack.pitchForTemperature(temp, mode, centers, currentInstrument);
+      $('#activeBrightness').textContent = rest ? '—' : `${temp.toFixed(1)} · ${tempTrack.temperatureLabel(temp)}`;
+      $('#activeNote').textContent = note ? `${note.name} · ${note.pitch} · ${note.hz.toFixed(1)} Hz` : 'Rest';
+      $('#scanPosition').textContent = `Map (${clampedX}, ${clampedY})`;
+      status.textContent = rest ? 'Clicked off-globe background — rest.' : `Clicked (${clampedX}, ${clampedY}): temp ${temp.toFixed(1)} / 6 (${tempTrack.temperatureLabel(temp)}), ${note.name} (${note.pitch}).`;
+    } else {
+      const rest = a === 0;
+      const br = rest ? null : light.brightnessFromRGB(r, g, b);
+      note = rest ? null : light.pitchForBrightness(br, mode, centers);
+      $('#activeBrightness').textContent = rest ? '—' : String(br);
+      $('#activeNote').textContent = note ? `${note.name} · ${note.pitch} · ${note.hz.toFixed(1)} Hz` : 'Rest';
+      $('#scanPosition').textContent = `Image (${clampedX}, ${clampedY})`;
+      status.textContent = rest ? 'Clicked transparent pixel — rest.' : `Clicked (${clampedX}, ${clampedY}): brightness ${br}, ${note.name} (${note.pitch}).`;
+    }
+
+    try {
+      if (note) {
+        await voice.ready();
+        voice.play(note.hz);
+      }
+    } catch { /* Silent if audio not ready */ }
+  }
+
   function renderRoute() {
     overlay.replaceChildren();
     route.replaceChildren();
     spots.forEach((spot, index) => {
       const note = noteAt(spot);
-      const label = `Preview spot ${index + 1}: ${spot.rest ? 'transparent, rest' : `brightness ${spot.brightness}, ${note.name}, ${note.pitch}`}`;
+      let metricStr = '';
+      let colorDotHtml = '';
+
+      if (currentTrack === 'temperature') {
+        const tempText = spot.rest ? 'Background rest' : `Temp ${spot.temperature.toFixed(1)} / 6 · ${tempTrack.temperatureLabel(spot.temperature)}`;
+        metricStr = spot.label ? `${spot.label} · ${tempText}` : tempText;
+        if (!spot.rest) {
+          const color = tempTrack.colorForTemperature(spot.temperature);
+          colorDotHtml = `<span class="spot-color-dot" style="background:${color}" aria-hidden="true"></span>`;
+        }
+      } else {
+        metricStr = spot.rest ? 'Transparent' : `${spot.brightness} / 255`;
+      }
+
+      const noteLabel = note ? (note.name === 'Do' && (note.pitch === 'C5' || (currentInstrument === 'bass' && note.pitch === 'C4')) ? 'High Do' : note.name) : 'Rest';
+      const label = `Preview spot ${index + 1}: ${metricStr}, ${noteLabel}${note ? `, ${note.pitch}` : ''}`;
+
       const marker = document.createElement('button');
       marker.type = 'button';
       marker.className = 'spot';
@@ -130,14 +236,22 @@
       marker.style.top = `${(spot.y + 0.5) / image.height * 100}%`;
       marker.textContent = String(index + 1);
       marker.setAttribute('aria-label', label);
-      marker.addEventListener('click', () => { void previewSpot(index); });
+      marker.addEventListener('click', e => {
+        e.stopPropagation();
+        void previewSpot(index);
+      });
       overlay.append(marker);
+
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'route-step';
       button.setAttribute('aria-label', label);
-      const noteLabel = note ? (note.name === 'Do' && note.pitch === 'C5' ? 'High Do' : note.name) : 'Rest';
-      button.innerHTML = `<span class="step-number">SPOT ${index + 1}</span><strong class="note-name">${noteLabel}</strong>${note ? `<small class="brightness-value">${note.pitch} · ${note.hz.toFixed(1)} Hz</small>` : ''}<small class="brightness-value">${spot.rest ? 'Transparent' : `${spot.brightness} / 255`}</small>`;
+      button.innerHTML = `
+        <span class="step-number">SPOT ${index + 1}</span>
+        <strong class="note-name">${colorDotHtml}${noteLabel}</strong>
+        ${note ? `<small class="brightness-value">${note.pitch} · ${note.hz.toFixed(1)} Hz</small>` : ''}
+        <small class="brightness-value">${metricStr}</small>
+      `;
       button.addEventListener('click', () => { void previewSpot(index); });
       route.append(button);
     });
@@ -146,72 +260,172 @@
   function renderLearning() {
     const list = $('#groupCenters');
     list.replaceChildren();
-    $('#learningSummary').textContent = centers.length
-      ? `${centers.length} ${centers.length === 1 ? 'group' : 'groups'} learned from the current image. Center values are brightness on a 0–255 scale, sorted dark to bright.`
-      : 'No non-transparent pixels in the training sample. Transparent spots are rests; any other spots use the fixed scale.';
-    centers.forEach(center => {
-      const item = document.createElement('li');
-      const swatch = document.createElement('span');
-      const value = Math.round(center);
-      swatch.className = 'swatch';
-      swatch.style.backgroundColor = `rgb(${value}, ${value}, ${value})`;
-      swatch.setAttribute('aria-hidden', 'true');
-      const text = document.createElement('strong');
-      text.textContent = center.toFixed(1);
-      const label = document.createElement('small');
-      const note = light.pitchForBrightness(center, 'learned', centers);
-      label.textContent = `${note.name} · ${note.pitch}`;
-      item.append(swatch, text, label);
-      list.append(item);
-    });
+
+    if (currentTrack === 'temperature') {
+      $('#learningTitle').textContent = 'What the temperature model learned';
+      $('#learningSummary').textContent = centers.length
+        ? `${centers.length} ${centers.length === 1 ? 'group' : 'groups'} learned from the current map. Center values are temperatures on a 0–6 scale, sorted coldest to hottest.`
+        : 'No valid temperature pixels found in the training sample.';
+      $('#learningHelper').textContent = 'One-dimensional k-means learns up to seven temperature groups from this map, ordered from freezing to scorching across Do–Si. In “Learn from image” mode, pitches align to these learned centers.';
+
+      centers.forEach(center => {
+        const item = document.createElement('li');
+        const swatch = document.createElement('span');
+        swatch.className = 'swatch';
+        swatch.style.backgroundColor = tempTrack.colorForTemperature(center);
+        swatch.setAttribute('aria-hidden', 'true');
+        const text = document.createElement('strong');
+        text.textContent = center.toFixed(1);
+        const label = document.createElement('small');
+        const note = tempTrack.pitchForTemperature(center, 'learned', centers, currentInstrument);
+        label.textContent = `${note.name} · ${note.pitch}`;
+        item.append(swatch, text, label);
+        list.append(item);
+      });
+    } else {
+      $('#learningTitle').textContent = 'What the image model learned';
+      $('#learningSummary').textContent = centers.length
+        ? `${centers.length} ${centers.length === 1 ? 'group' : 'groups'} learned from the current image. Center values are brightness on a 0–255 scale, sorted dark to bright.`
+        : 'No non-transparent pixels in the training sample. Transparent spots are rests; any other spots use the fixed scale.';
+      $('#learningHelper').textContent = 'One-dimensional k-means learns up to seven brightness groups from a sample of this image. Groups run from dark to bright across Do–Si. A uniform image has one group: Do. These groups affect pitch only in “Learn from image” mode.';
+
+      centers.forEach(center => {
+        const item = document.createElement('li');
+        const swatch = document.createElement('span');
+        const value = Math.round(center);
+        swatch.className = 'swatch';
+        swatch.style.backgroundColor = `rgb(${value}, ${value}, ${value})`;
+        swatch.setAttribute('aria-hidden', 'true');
+        const text = document.createElement('strong');
+        text.textContent = center.toFixed(1);
+        const label = document.createElement('small');
+        const note = light.pitchForBrightness(center, 'learned', centers);
+        label.textContent = `${note.name} · ${note.pitch}`;
+        item.append(swatch, text, label);
+        list.append(item);
+      });
+    }
   }
 
-  function applyImage(nextImage, name, testPattern = false) {
-    // Analyze a separate RGBA grid. Markers and the scan line are DOM overlays;
-    // neither is ever drawn into the pixels used by the model or scan.
-    const nextSpots = light.scanSpots(nextImage);
-    const nextCenters = light.learnBrightnessGroups(nextImage);
+  function applyImage(nextImage, name, testPattern = false, isPreset = false) {
+    let nextSpots;
+    let nextCenters;
+
+    if (currentTrack === 'temperature') {
+      const customSpots = (isPreset && nextImage.width === 1024) ? EARTH_PRESET_SPOTS : null;
+      nextSpots = tempTrack.scanSpots(nextImage, customSpots);
+      nextCenters = tempTrack.learnTemperatureGroups(nextImage);
+    } else {
+      nextSpots = light.scanSpots(nextImage);
+      nextCenters = light.learnBrightnessGroups(nextImage);
+    }
+
     stopPlayback();
     image = nextImage;
     imageName = name;
     isTestPattern = testPattern;
+    isEarthPreset = isPreset;
     spots = nextSpots;
     centers = nextCenters;
+
     canvas.width = image.width;
     canvas.height = image.height;
     const display = context.createImageData(image.width, image.height);
     display.data.set(image.data);
     context.putImageData(display, 0, 0);
+
     $('#sourceTitle').textContent = name;
-    $('#sourceMeta').textContent = `${image.width} × ${image.height} pixels · 8 spots · 0.5 seconds per spot`;
-    canvas.setAttribute('aria-label', `${name}. Eight sampling spots from left to right along the middle row.`);
+    $('#sourceMeta').textContent = `${image.width} × ${image.height} pixels · 8 spots · 0.5s per spot`;
+    canvas.setAttribute('aria-label', `${name}. Eight sampling spots from left to right.`);
+
     renderRoute();
     renderLearning();
+
     $('#activeBrightness').textContent = '—';
     $('#activeNote').textContent = '—';
     $('#scanPosition').textContent = '— / 8';
+
     const result = $('#testResult');
     result.hidden = !isTestPattern;
     $('#patternNote').hidden = !isTestPattern;
+
     if (isTestPattern) {
-      const notes = spots.map(spot => light.pitchForSpot(spot, 'fixed', [], true));
-      const passed = notes.map(note => note.pitch).join(',') === 'C4,D4,E4,F4,G4,A4,B4,C5';
+      const notes = spots.map(spot => noteAt(spot));
+      const passed = notes.map(note => note.pitch).join(',') === (
+        currentTrack === 'temperature'
+          ? (currentInstrument === 'bass' ? 'C3,D3,E3,F3,G3,A3,B3,C4' : 'C4,D4,E4,F4,G4,A4,B4,C5')
+          : 'C4,D4,E4,F4,G4,A4,B4,C5'
+      );
       const actual = notes.map(note => `${note.name} (${note.pitch})`).join(' → ');
       result.textContent = `${passed ? 'Test phrase check passed' : 'Test phrase check failed'}: ${actual}`;
     }
+
     status.textContent = `${name} ready. ${mode === 'fixed' ? 'Fixed scale' : 'Learn from image'} mode. Press Play scan.`;
+  }
+
+  function setTrack(track) {
+    if (track !== 'temperature' && track !== 'light') return;
+    if (track === currentTrack) return;
+    stopPlayback();
+    currentTrack = track;
+
+    if (currentTrack === 'temperature') {
+      trackTempBtn.classList.add('active');
+      trackTempBtn.setAttribute('aria-pressed', 'true');
+      trackLightBtn.classList.remove('active');
+      trackLightBtn.setAttribute('aria-pressed', 'false');
+
+      $('#trackEyebrow').textContent = 'DJ_EARth / SECOND TRACK';
+      $('#trackHeading').textContent = 'Hear the Earth’s temperature.';
+      $('#trackIntro').textContent = 'Eight places, eight notes. Scan the thermal map from left to right and hear planetary temperature variation. The higher the temperature, the higher the pitch.';
+      $('#trackTag').textContent = 'Temperature variation → Earth bass · Higher temperature = higher pitch';
+      $('#metricLabel').textContent = 'Temperature / 6';
+      uploadLabel.childNodes[0].textContent = 'Upload temperature map\n';
+      useEarthMapBtn.hidden = false;
+      instrumentFieldset.hidden = false;
+      $('#footerScaleExplanation').textContent = 'Temperature track: Navy (0) → Blue (1) → Cyan (2) → Green (3) → Yellow (4) → Red (5) → Maroon (6) maps to Do, Ré, Mi, Fa, Sol, La, Si. The higher the temperature, the higher the pitch.';
+
+      loadEarthPresetMap();
+    } else {
+      trackLightBtn.classList.add('active');
+      trackLightBtn.setAttribute('aria-pressed', 'true');
+      trackTempBtn.classList.remove('active');
+      trackTempBtn.setAttribute('aria-pressed', 'false');
+
+      $('#trackEyebrow').textContent = 'DJ_EARth / FIRST TRACK';
+      $('#trackHeading').textContent = 'Hear the night lights.';
+      $('#trackIntro').textContent = 'Eight places, eight piano notes. Scan an image from left to right and hear its brightness.';
+      $('#trackTag').textContent = 'Nighttime light intensity → piano';
+      $('#metricLabel').textContent = 'Brightness / 255';
+      uploadLabel.childNodes[0].textContent = 'Upload NASA night-lights image\n';
+      useEarthMapBtn.hidden = true;
+      instrumentFieldset.hidden = true;
+      $('#footerScaleExplanation').textContent = 'Fixed scale: floor(brightness × 7 / 256) → Do, Ré, Mi, Fa, Sol, La, Si (C4–B4). Brightness = round(0.2126R + 0.7152G + 0.0722B).';
+
+      applyImage(light.createTestPattern(), 'Night lights test pattern', true);
+    }
   }
 
   function setMode(value) {
     if (value !== 'fixed' && value !== 'learned') return;
     stopPlayback();
     mode = value;
-    modes.forEach(input => { input.checked = input.value === mode; });
+    pitchModes.forEach(input => { input.checked = input.value === mode; });
     renderRoute();
     $('#activeBrightness').textContent = '—';
     $('#activeNote').textContent = '—';
     $('#scanPosition').textContent = '— / 8';
-    status.textContent = `${mode === 'fixed' ? 'Fixed scale' : 'Learn from image'} mode selected. Press Play scan to restart at spot 1.`;
+    status.textContent = `${mode === 'fixed' ? 'Fixed scale' : 'Learn from image'} mode selected. Press Play scan.`;
+  }
+
+  function setInstrument(inst) {
+    if (inst !== 'bass' && inst !== 'piano') return;
+    stopPlayback();
+    currentInstrument = inst;
+    instrumentModes.forEach(input => { input.checked = input.value === inst; });
+    renderRoute();
+    renderLearning();
+    status.textContent = `Instrument changed to ${inst === 'bass' ? 'Earth Bass (C3–C4)' : 'Piano (C4–C5)'}.`;
   }
 
   function useTestPattern() {
@@ -219,7 +433,45 @@
     loading = false;
     playButton.disabled = false;
     upload.value = '';
-    applyImage(light.createTestPattern(), 'Test pattern', true);
+    if (currentTrack === 'temperature') {
+      applyImage(tempTrack.createTestPattern(), 'Temperature test pattern', true);
+    } else {
+      applyImage(light.createTestPattern(), 'Night lights test pattern', true);
+    }
+  }
+
+  async function loadEarthPresetMap() {
+    const request = ++imageRequest;
+    stopPlayback('Loading Earth temperature map…');
+    loading = true;
+    playButton.disabled = true;
+
+    try {
+      const decoded = new Image();
+      await new Promise((resolve, reject) => {
+        decoded.onload = resolve;
+        decoded.onerror = () => reject(new Error('Could not load earth-temperature.jpg'));
+        decoded.src = 'earth-temperature.jpg';
+      });
+      if (request !== imageRequest) return;
+      const staging = document.createElement('canvas');
+      staging.width = decoded.naturalWidth;
+      staging.height = decoded.naturalHeight;
+      const stagingContext = staging.getContext('2d', { willReadFrequently: true });
+      stagingContext.drawImage(decoded, 0, 0);
+      const pixels = stagingContext.getImageData(0, 0, staging.width, staging.height);
+      applyImage(pixels, 'Earth temperature map', false, true);
+    } catch {
+      // Fallback to test pattern if image file cannot be loaded directly
+      if (request === imageRequest) {
+        applyImage(tempTrack.createTestPattern(), 'Temperature test pattern', true);
+      }
+    } finally {
+      if (request === imageRequest) {
+        loading = false;
+        playButton.disabled = false;
+      }
+    }
   }
 
   async function uploadImage(file) {
@@ -241,15 +493,13 @@
         decoded.src = url;
       });
       if (request !== imageRequest) return;
-      // Decode into a temporary canvas so a failed upload cannot corrupt the
-      // existing image. Keep original resolution; sample the same displayed RGB.
       const staging = document.createElement('canvas');
       staging.width = decoded.naturalWidth;
       staging.height = decoded.naturalHeight;
       const stagingContext = staging.getContext('2d', { willReadFrequently: true });
       stagingContext.drawImage(decoded, 0, 0);
       const pixels = stagingContext.getImageData(0, 0, staging.width, staging.height);
-      applyImage(pixels, file.name);
+      applyImage(pixels, file.name, false, false);
     } catch (error) {
       if (request === imageRequest) status.textContent = `Could not open image: ${error.message} The previous image is still available.`;
     } finally {
@@ -261,35 +511,69 @@
     }
   }
 
+  // Event Listeners
   playButton.addEventListener('click', () => { void playScan(); });
   stopButton.addEventListener('click', () => stopPlayback());
-  $('#resetPattern').addEventListener('click', useTestPattern);
+  resetPatternBtn.addEventListener('click', useTestPattern);
+  useEarthMapBtn.addEventListener('click', () => { void loadEarthPresetMap(); });
+  trackTempBtn.addEventListener('click', () => setTrack('temperature'));
+  trackLightBtn.addEventListener('click', () => setTrack('light'));
+
   volume.addEventListener('input', () => {
     const value = Number(volume.value);
     $('#volumeValue').textContent = `${value}%${value === 0 ? ' · silent' : ''}`;
     piano.setVolume(value / 100);
+    bass.setVolume(value / 100);
   });
-  modes.forEach(input => input.addEventListener('change', () => {
+
+  pitchModes.forEach(input => input.addEventListener('change', () => {
     if (input.checked) setMode(input.value);
   }));
+
+  instrumentModes.forEach(input => input.addEventListener('change', () => {
+    if (input.checked) setInstrument(input.value);
+  }));
+
   upload.addEventListener('change', () => { void uploadImage(upload.files[0]); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden) stopPlayback('Scan stopped while the page was hidden.'); });
+
+  // Interactive click on canvas to inspect/hear any location
+  canvas.addEventListener('click', event => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
+    void previewCoordinates(x, y);
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopPlayback('Scan stopped while the page was hidden.');
+  });
   global.addEventListener('pagehide', () => stopPlayback());
 
-  // Small controller API also supports reproducible local integration checks.
+  // Exposed API for automated integration checks and tests
   global.djEarthApp = Object.freeze({
-    playScan, previewSpot, stop: stopPlayback, setMode, uploadImage,
-    loadImageData(nextImage, name = 'Local image') {
+    playScan, previewSpot, previewCoordinates, stop: stopPlayback,
+    setMode, setTrack, setInstrument, uploadImage, useTestPattern, loadEarthPresetMap,
+    loadImageData(nextImage, name = 'Local image', isTest = false) {
       imageRequest++;
       loading = false;
       playButton.disabled = false;
-      applyImage(nextImage, name);
+      applyImage(nextImage, name, isTest);
     },
-    useTestPattern,
-    getState: () => ({ imageName, width: image.width, height: image.height, mode,
-      spots: spots.map(spot => ({ ...spot })), centers: centers.slice(),
+    getState: () => ({
+      currentTrack, currentInstrument, imageName,
+      width: image ? image.width : 0,
+      height: image ? image.height : 0,
+      mode,
+      spots: spots.map(spot => ({ ...spot })),
+      centers: centers.slice(),
       noteNames: spots.map(spot => noteAt(spot)?.name || 'Rest'),
-      activeIndex, scanning, loading, volume: Number(volume.value) / 100 })
+      activeIndex, scanning, loading,
+      volume: Number(volume.value) / 100
+    })
   });
-  useTestPattern();
+
+  // Initialize with Earth Temperature track & preset map
+  void loadEarthPresetMap();
 })(globalThis);
