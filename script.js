@@ -1,14 +1,14 @@
 /* DJ_EARth App Controller
    Supports both planetary tracks:
    Track 1: Night lights (Brightness → piano)
-   Track 2: Earth Temperature (Temperature variation → Earth bass)
+   Track 2: Earth Temperature (Temperature variation → harmonica)
 */
 (function (global) {
   'use strict';
   const light = global.DJEarthLight;
   const tempTrack = global.DJEarthTemperature;
   const piano = global.createDJEarthPiano({ volume: 0.55 });
-  const bass = global.createDJEarthBass({ volume: 0.55 });
+  const bass = global.DJEarthInstruments.createInstrument('harmonica', { volume: 0.55 });
 
   const $ = selector => document.querySelector(selector);
   const canvas = $('#sourceCanvas');
@@ -66,7 +66,7 @@
 
   function noteAt(spot) {
     if (currentTrack === 'temperature') {
-      const inst = bassRegister === 'tenor' ? 'tenor-bass' : 'bass';
+      const inst = 'piano';
       return tempTrack.pitchForSpot(spot, mode, centers, isTestPattern, inst);
     }
     return light.pitchForSpot(spot, mode, centers, isTestPattern);
@@ -94,7 +94,7 @@
       $('#activeNote').textContent = note ? `${note.name} · ${note.pitch} · ${note.hz.toFixed(1)} Hz` : 'Rest';
       $('#scanPosition').textContent = `${index + 1} / 8`;
       const loc = spot.label ? ` (${spot.label})` : '';
-      status.textContent = `Spot ${index + 1}${loc}: ${spot.rest ? 'off-globe background — rest' : `temp ${spot.temperature.toFixed(1)} / 6 (${tempTrack.temperatureLabel(spot.temperature)}), Earth bass: ${note.name} (${note.pitch} · ${note.hz.toFixed(1)} Hz)`}.`;
+      status.textContent = `Spot ${index + 1}${loc}: ${spot.rest ? 'off-globe background — rest' : `temp ${spot.temperature.toFixed(1)} / 6 (${tempTrack.temperatureLabel(spot.temperature)}), harmonica: ${note.name} (${note.pitch} · ${note.hz.toFixed(1)} Hz)`}.`;
     } else {
       $('#activeBrightness').textContent = spot.rest ? '—' : String(spot.brightness);
       $('#activeNote').textContent = note ? `${note.name} · ${note.pitch} · ${note.hz.toFixed(1)} Hz` : 'Rest';
@@ -116,6 +116,7 @@
   }
 
   async function playScan() {
+    global.djEarthSolo?.stop();
     stopPlayback('Starting scan…');
     if (loading) return;
     const ticket = run;
@@ -147,6 +148,7 @@
   }
 
   async function previewSpot(index) {
+    global.djEarthSolo?.stop();
     stopPlayback();
     if (loading) return;
     const ticket = run;
@@ -170,6 +172,7 @@
 
   async function previewCoordinates(x, y) {
     if (!image) return;
+    global.djEarthSolo?.stop();
     stopPlayback();
     const voice = activeVoice();
     const clampedX = Math.max(0, Math.min(image.width - 1, Math.round(x)));
@@ -184,12 +187,12 @@
     if (currentTrack === 'temperature') {
       const rest = tempTrack.isRestPixel(r, g, b, a);
       const temp = rest ? null : tempTrack.temperatureFromRGB(r, g, b);
-      const inst = bassRegister === 'tenor' ? 'tenor-bass' : 'bass';
+      const inst = 'piano';
       note = rest ? null : tempTrack.pitchForTemperature(temp, mode, centers, inst);
       $('#activeBrightness').textContent = rest ? '—' : `${temp.toFixed(1)} · ${tempTrack.temperatureLabel(temp)}`;
       $('#activeNote').textContent = note ? `${note.name} · ${note.pitch} · ${note.hz.toFixed(1)} Hz` : 'Rest';
       $('#scanPosition').textContent = `Map (${clampedX}, ${clampedY})`;
-      status.textContent = rest ? 'Clicked off-globe background — rest.' : `Clicked (${clampedX}, ${clampedY}): temp ${temp.toFixed(1)} / 6 (${tempTrack.temperatureLabel(temp)}), Earth bass: ${note.name} (${note.pitch} · ${note.hz.toFixed(1)} Hz).`;
+      status.textContent = rest ? 'Clicked off-globe background — rest.' : `Clicked (${clampedX}, ${clampedY}): temp ${temp.toFixed(1)} / 6 (${tempTrack.temperatureLabel(temp)}), harmonica: ${note.name} (${note.pitch} · ${note.hz.toFixed(1)} Hz).`;
     } else {
       const rest = a === 0;
       const br = rest ? null : light.brightnessFromRGB(r, g, b);
@@ -270,9 +273,9 @@
       $('#learningSummary').textContent = centers.length
         ? `${centers.length} ${centers.length === 1 ? 'group' : 'groups'} learned from the current map. Center values are temperatures on a 0–6 scale, sorted coldest to hottest.`
         : 'No valid temperature pixels found in the training sample.';
-      $('#learningHelper').textContent = 'One-dimensional k-means learns up to seven temperature groups from this map, ordered from freezing to scorching across Do–Si. In “Learn from image” mode, Earth bass pitches align to these learned centers.';
+      $('#learningHelper').textContent = 'One-dimensional k-means learns up to seven temperature groups from this map, ordered from freezing to scorching across Do–Si. In “Learn from image” mode, harmonica pitches align to these learned centers.';
 
-      const inst = bassRegister === 'tenor' ? 'tenor-bass' : 'bass';
+      const inst = 'piano';
       centers.forEach(center => {
         const item = document.createElement('li');
         const swatch = document.createElement('span');
@@ -357,7 +360,7 @@
     if (isTestPattern) {
       const notes = spots.map(spot => noteAt(spot));
       const expected = currentTrack === 'temperature'
-        ? (bassRegister === 'tenor' ? 'C3,D3,E3,F3,G3,A3,B3,C4' : 'C2,D2,E2,F2,G2,A2,B2,C3')
+        ? 'C4,D4,E4,F4,G4,A4,B4,C5'
         : 'C4,D4,E4,F4,G4,A4,B4,C5';
       const passed = notes.map(note => note.pitch).join(',') === expected;
       const actual = notes.map(note => `${note.name} (${note.pitch})`).join(' → ');
@@ -371,6 +374,9 @@
     if (track !== 'temperature' && track !== 'light') return;
     if (track === currentTrack) return;
     stopPlayback();
+    imageRequest++;
+    loading = false;
+    playButton.disabled = false;
     currentTrack = track;
 
     if (currentTrack === 'temperature') {
@@ -381,14 +387,14 @@
 
       $('#trackEyebrow').textContent = 'DJ_EARth / SECOND TRACK';
       $('#trackHeading').textContent = 'Hear the Earth’s temperature.';
-      $('#trackIntro').textContent = 'Eight places, eight bass notes. Scan the thermal map from left to right and hear planetary temperature variation. The higher the temperature, the higher the pitch.';
-      $('#trackTag').textContent = 'Temperature variation → Earth bass · Higher temperature = higher pitch';
+      $('#trackIntro').textContent = 'Eight places, eight harmonica notes. Scan the thermal map from left to right and hear planetary temperature variation. The higher the temperature, the higher the pitch.';
+      $('#trackTag').textContent = 'Temperature variation → harmonica · Higher temperature = higher pitch';
       $('#metricLabel').textContent = 'Temperature / 6';
-      $('#instrumentLabel').textContent = 'Earth bass note';
+      $('#instrumentLabel').textContent = 'harmonica note';
       uploadLabel.childNodes[0].textContent = 'Upload temperature map\n';
       useEarthMapBtn.hidden = false;
-      instrumentFieldset.hidden = false;
-      $('#footerScaleExplanation').textContent = 'Temperature track: Navy (0) → Blue (1) → Cyan (2) → Green (3) → Yellow (4) → Red (5) → Maroon (6) maps to Earth bass notes Do, Ré, Mi, Fa, Sol, La, Si. The higher the temperature, the higher the pitch.';
+      instrumentFieldset.hidden = true;
+      $('#footerScaleExplanation').textContent = 'Temperature track: Navy (0) → Blue (1) → Cyan (2) → Green (3) → Yellow (4) → Red (5) → Maroon (6) maps to harmonica notes Do, Ré, Mi, Fa, Sol, La, Si. The higher the temperature, the higher the pitch.';
 
       loadEarthPresetMap();
     } else {

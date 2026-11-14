@@ -4,33 +4,95 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DJ_EARth · Earth temperature &amp; night lights to sound</title>
-  <link rel="stylesheet" href="style.css?v=temp-1">
+  <link rel="stylesheet" href="style.css?v=track-images-1">
   <script src="light-track.js?v=temp-1" defer></script>
   <script src="temperature-track.js?v=temp-1" defer></script>
   <script src="piano.js?v=temp-1" defer></script>
   <script src="bass.js?v=temp-1" defer></script>
-  <script src="script.js?v=temp-1" defer></script>
+  <script src="instruments.js?v=solo-1" defer></script>
+  <script src="script.js?v=solo-1" defer></script>
+  <script src="solo.js?v=track-images-1" defer></script>
 </head>
 <body>
   <main class="app">
     <header class="header">
       <nav class="track-nav" aria-label="Select planetary track">
-        <button id="trackTempBtn" class="track-tab active" type="button" aria-pressed="true">
-          <span class="track-tab-badge">TRACK 2</span>
-          <span class="track-tab-name">🌡️ Earth Temperature</span>
-          <span class="track-tab-desc">Thermal map → Earth bass</span>
-        </button>
-        <button id="trackLightBtn" class="track-tab" type="button" aria-pressed="false">
+        <button id="trackLightBtn" class="track-tab" type="button" aria-pressed="false" data-track-index="0">
           <span class="track-tab-badge">TRACK 1</span>
-          <span class="track-tab-name">💡 Night Lights</span>
-          <span class="track-tab-desc">Brightness → piano</span>
+          <span class="track-tab-name"><span aria-hidden="true">&#128161;</span> Night Lights</span>
+          <span class="track-tab-desc">Brightness &rarr; Piano</span>
+        </button>
+        <button id="trackTempBtn" class="track-tab active" type="button" aria-pressed="true" data-track-index="1">
+          <span class="track-tab-badge">TRACK 2</span>
+          <span class="track-tab-name"><span aria-hidden="true">&#127777;</span> Earth Temperature</span>
+          <span class="track-tab-desc">Temperature &rarr; Harmonica</span>
+        </button>
+        <button id="trackAirBtn" class="track-tab" type="button" aria-pressed="false" data-track-index="2">
+          <span class="track-tab-badge">TRACK 3</span>
+          <span class="track-tab-name"><span aria-hidden="true">&#127787;</span> Air Quality</span>
+          <span class="track-tab-desc">Air quality &rarr; Flute</span>
+        </button>
+        <button id="trackStormsBtn" class="track-tab" type="button" aria-pressed="false" data-track-index="3">
+          <span class="track-tab-badge">TRACK 4</span>
+          <span class="track-tab-name"><span aria-hidden="true">&#9928;</span> Storms</span>
+          <span class="track-tab-desc">Storm intensity &rarr; Electric guitar</span>
+        </button>
+        <button id="trackOceanBtn" class="track-tab" type="button" aria-pressed="false" data-track-index="4">
+          <span class="track-tab-badge">TRACK 5</span>
+          <span class="track-tab-name"><span aria-hidden="true">&#127754;</span> Ocean Currents</span>
+          <span class="track-tab-desc">Current strength &rarr; Harp</span>
+        </button>
+        <button id="trackWindBtn" class="track-tab" type="button" aria-pressed="false" data-track-index="5">
+          <span class="track-tab-badge">TRACK 6</span>
+          <span class="track-tab-name"><span aria-hidden="true">&#128168;</span> Wind Speed</span>
+          <span class="track-tab-desc">Wind speed &rarr; Drums</span>
+        </button>
+        <button id="trackHurricaneBtn" class="track-tab" type="button" aria-pressed="false" data-track-index="6">
+          <span class="track-tab-badge">TRACK 7</span>
+          <span class="track-tab-name"><span aria-hidden="true">&#127744;</span> Hurricane</span>
+          <span class="track-tab-desc">Hurricane intensity &rarr; Violin</span>
+        </button>
+        <button id="trackAltitudeBtn" class="track-tab" type="button" aria-pressed="false" data-track-index="7">
+          <span class="track-tab-badge">TRACK 8</span>
+          <span class="track-tab-name"><span aria-hidden="true">&#9968;</span> Altitude</span>
+          <span class="track-tab-desc">Altitude &rarr; Bass</span>
         </button>
       </nav>
       <p id="trackEyebrow" class="eyebrow">DJ_EARth / SECOND TRACK</p>
       <h1 id="trackHeading">Hear the Earth’s temperature.</h1>
-      <p id="trackIntro" class="intro">Eight places, eight bass notes. Scan the thermal map from left to right and hear planetary temperature variation. The higher the temperature, the higher the pitch.</p>
-      <span id="trackTag" class="track-tag">Temperature variation → Earth bass · Higher temperature = higher pitch</span>
+      <p id="trackIntro" class="intro">Eight places, eight harmonica notes. Scan the thermal map from left to right and hear planetary temperature variation. The higher the temperature, the higher the pitch.</p>
+      <span id="trackTag" class="track-tag">Temperature variation → harmonica · Higher temperature = higher pitch</span>
     </header>
+
+    <section class="panel" aria-labelledby="soloTitle">
+      <h2 id="soloTitle">Test each parameter alone</h2>
+      <p>Select a track above, adjust its demo value, then play a sound or an eight-step phrase. These are synthesized instrument previews; demo values are not live Earth measurements.</p>
+      <select id="soloInstrument" aria-label="Selected track instrument" hidden></select>
+      <p id="soloAssignment" class="track-tag">Temperature &rarr; Harmonica</p>
+      <label>Demo value <output id="soloValueLabel">50%</output><input id="soloValue" type="range" min="0" max="100" value="50"></label>
+      <div class="source-actions">
+        <button id="soloNote" type="button">Play value</button>
+        <button id="soloPhrase" type="button">Play test phrase</button>
+        <button id="soloStop" type="button">Stop solo</button>
+      </div>
+      <p id="soloStatus" role="status">Choose a parameter to hear its assigned instrument.</p>
+    </section>
+
+    <section id="trackImagePanel" class="panel" aria-labelledby="trackImageTitle" hidden>
+      <div class="section-heading">
+        <div>
+          <h2 id="trackImageTitle">Track reference image</h2>
+          <p id="trackImageMeta"></p>
+        </div>
+        <a id="trackImageSource" target="_blank" rel="noopener noreferrer">View NASA source &nearr;</a>
+      </div>
+      <figure class="track-image-figure">
+        <img id="trackImage" width="1024" height="576" alt="">
+        <figcaption id="trackImageCaption" class="helper"></figcaption>
+      </figure>
+      <p id="trackImageError" role="status" hidden>Image unavailable. Open the NASA source above to view it.</p>
+      <p class="helper">Image credit: NASA/Goddard Space Flight Center. Reference image only; use the demo controls above to test this instrument.</p>
+    </section>
 
     <section class="panel source-panel" aria-labelledby="sourceTitle">
       <div class="section-heading">
@@ -70,7 +132,7 @@
           <label><input type="radio" name="pitchMode" value="fixed" checked>Fixed scale</label>
           <label><input type="radio" name="pitchMode" value="learned">Learn from image</label>
         </fieldset>
-        <fieldset class="pitch-modes" id="instrumentFieldset">
+        <fieldset class="pitch-modes" id="instrumentFieldset" hidden>
           <legend>Bass Register</legend>
           <label><input type="radio" name="bassRegister" value="deep" checked>Deep Bass (C2–C3 · 65–131 Hz)</label>
           <label><input type="radio" name="bassRegister" value="tenor">Tenor Bass (C3–C4 · 131–262 Hz)</label>
@@ -82,7 +144,7 @@
     <section class="panel readout-panel" aria-label="Current scan location">
       <div class="live-readout">
         <div><span id="metricLabel" class="label">Temperature / 6</span><output id="activeBrightness">—</output></div>
-        <div><span id="instrumentLabel" class="label">Earth bass note</span><output id="activeNote">—</output></div>
+        <div><span id="instrumentLabel" class="label">harmonica note</span><output id="activeNote">—</output></div>
         <div><span class="label">Scan spot</span><output id="scanPosition">— / 8</output></div>
       </div>
       <p id="status" role="status">Ready. Play the scan or preview a location.</p>
