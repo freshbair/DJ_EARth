@@ -18,7 +18,7 @@
         <button id="trackTempBtn" class="track-tab active" type="button" aria-pressed="true">
           <span class="track-tab-badge">TRACK 2</span>
           <span class="track-tab-name">🌡️ Earth Temperature</span>
-          <span class="track-tab-desc">Thermal map → bass / piano</span>
+          <span class="track-tab-desc">Thermal map → Earth bass</span>
         </button>
         <button id="trackLightBtn" class="track-tab" type="button" aria-pressed="false">
           <span class="track-tab-badge">TRACK 1</span>
@@ -28,7 +28,7 @@
       </nav>
       <p id="trackEyebrow" class="eyebrow">DJ_EARth / SECOND TRACK</p>
       <h1 id="trackHeading">Hear the Earth’s temperature.</h1>
-      <p id="trackIntro" class="intro">Eight places, eight notes. Scan the thermal map from left to right and hear planetary temperature variation. The higher the temperature, the higher the pitch.</p>
+      <p id="trackIntro" class="intro">Eight places, eight bass notes. Scan the thermal map from left to right and hear planetary temperature variation. The higher the temperature, the higher the pitch.</p>
       <span id="trackTag" class="track-tag">Temperature variation → Earth bass · Higher temperature = higher pitch</span>
     </header>
 
@@ -71,9 +71,9 @@
           <label><input type="radio" name="pitchMode" value="learned">Learn from image</label>
         </fieldset>
         <fieldset class="pitch-modes" id="instrumentFieldset">
-          <legend>Instrument</legend>
-          <label><input type="radio" name="instrumentMode" value="bass" checked>Earth Bass (C3–C4)</label>
-          <label><input type="radio" name="instrumentMode" value="piano">Piano (C4–C5)</label>
+          <legend>Bass Register</legend>
+          <label><input type="radio" name="bassRegister" value="deep" checked>Deep Bass (C2–C3 · 65–131 Hz)</label>
+          <label><input type="radio" name="bassRegister" value="tenor">Tenor Bass (C3–C4 · 131–262 Hz)</label>
         </fieldset>
       </div>
       <p id="volumeHelp" class="helper">Volume changes loudness only. Coldest temperatures still play Do; off-map background pixels are rests. One spot plays every 0.5 seconds.</p>
@@ -82,7 +82,7 @@
     <section class="panel readout-panel" aria-label="Current scan location">
       <div class="live-readout">
         <div><span id="metricLabel" class="label">Temperature / 6</span><output id="activeBrightness">—</output></div>
-        <div><span class="label">Instrument note</span><output id="activeNote">—</output></div>
+        <div><span id="instrumentLabel" class="label">Earth bass note</span><output id="activeNote">—</output></div>
         <div><span class="label">Scan spot</span><output id="scanPosition">— / 8</output></div>
       </div>
       <p id="status" role="status">Ready. Play the scan or preview a location.</p>

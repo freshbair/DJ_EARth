@@ -1,4 +1,6 @@
-/* Browser-synthesized temperature → Earth bass voice. No samples, downloads, or dependencies. */
+/* Browser-synthesized Earth bass voice. No samples, downloads, or dependencies.
+   Features resonant low-pass filter envelope and rich multi-oscillator harmonic layers
+   for an authentic, punchy, deep plucked bass sound. */
 (function (global) {
   'use strict';
 
@@ -9,16 +11,10 @@
    * options.AudioContext may supply a context constructor for automated tests.
    */
   function createDJEarthBass(options = {}) {
-    const MAX_GAIN = 0.22;
+    const MAX_GAIN = 0.28;
     const MAX_VOICES = 6;
-    const TAIL_SECONDS = 0.95;
-    // Harmonic partials designed for deep, warm, resonant Earth planetary bass
-    const PARTIALS = [
-      { harmonic: 1, type: 'sine', amplitude: 0.80, decay: 0.90 },
-      { harmonic: 1, type: 'triangle', amplitude: 0.25, decay: 0.65 },
-      { harmonic: 2, type: 'sine', amplitude: 0.18, decay: 0.45 },
-      { harmonic: 3, type: 'sine', amplitude: 0.07, decay: 0.25 }
-    ];
+    const TAIL_SECONDS = 1.1;
+
     let context;
     let master;
     let resumePromise;
@@ -62,12 +58,15 @@
       voice.disposed = true;
       voices.delete(voice);
       const now = context.currentTime;
-      voice.parts.forEach(({ tone, envelope }) => {
-        envelope.gain.cancelScheduledValues(now);
-        envelope.gain.setValueAtTime(0, now);
-        try { tone.stop(now); } catch { /* A previously ended source needs no stop. */ }
-        tone.disconnect();
-        envelope.disconnect();
+      voice.nodes.forEach(node => {
+        if (node.gain) {
+          node.gain.cancelScheduledValues(now);
+          node.gain.setValueAtTime(0, now);
+        }
+        if (node.frequency && node.stops) {
+          try { node.stop(now); } catch { /* Already stopped */ }
+        }
+        try { node.disconnect(); } catch { /* Ignore */ }
       });
     }
 
@@ -81,37 +80,98 @@
       if (voices.size >= MAX_VOICES) stopVoice(voices.values().next().value);
 
       const now = context.currentTime;
-      const voice = { parts: [], remaining: PARTIALS.length, disposed: false };
+      const voice = { nodes: [], disposed: false };
       voices.add(voice);
 
       try {
-        PARTIALS.forEach(({ harmonic, type, amplitude, decay }) => {
-          const tone = context.createOscillator();
-          const envelope = context.createGain();
-          voice.parts.push({ tone, envelope });
-          tone.type = type || 'sine';
-          tone.frequency.value = hz * harmonic;
-          tone.connect(envelope);
-          envelope.connect(master);
+        // Voice filter: resonant lowpass with snappy pluck decay
+        let filter;
+        if (typeof context.createBiquadFilter === 'function') {
+          filter = context.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.Q.value = 3.6;
+          // Pluck sweep: opens on the finger pluck and quickly sweeps down to the warm bass body
+          const startCutoff = Math.min(2600, Math.max(1000, hz * 10));
+          const bodyCutoff = Math.min(420, Math.max(150, hz * 2.0));
+          filter.frequency.setValueAtTime(startCutoff, now);
+          filter.frequency.exponentialRampToValueAtTime(bodyCutoff, now + 0.14);
+          filter.frequency.linearRampToValueAtTime(Math.max(70, hz * 1.1), now + TAIL_SECONDS);
+          filter.connect(master);
+          voice.nodes.push(filter);
+        } else {
+          filter = master;
+        }
 
-          // Fast plucked attack and smooth resonant release
-          envelope.gain.setValueAtTime(0, now);
-          envelope.gain.linearRampToValueAtTime(amplitude, now + 0.008);
-          envelope.gain.exponentialRampToValueAtTime(0.0001, now + decay);
-          envelope.gain.linearRampToValueAtTime(0, now + TAIL_SECONDS);
+        // Voice master envelope
+        const voiceGain = context.createGain();
+        voiceGain.gain.setValueAtTime(0, now);
+        voiceGain.gain.linearRampToValueAtTime(1.0, now + 0.007); // Snappy 7ms attack
+        voiceGain.gain.exponentialRampToValueAtTime(0.0001, now + TAIL_SECONDS - 0.05);
+        voiceGain.gain.linearRampToValueAtTime(0, now + TAIL_SECONDS);
+        voiceGain.connect(filter);
+        voice.nodes.push(voiceGain);
 
-          tone.onended = () => {
+        // Layer 1: Sub/Fundamental warm sine (deep low-end weight)
+        const subOsc = context.createOscillator();
+        const subGain = context.createGain();
+        subOsc.type = 'sine';
+        subOsc.frequency.setValueAtTime(hz, now);
+        subGain.gain.setValueAtTime(0.75, now);
+        subGain.gain.exponentialRampToValueAtTime(0.0001, now + TAIL_SECONDS * 0.9);
+        subOsc.connect(subGain);
+        subGain.connect(voiceGain);
+        voice.nodes.push(subOsc, subGain);
+
+        // Layer 2: Plucked body (sawtooth for rich harmonic body through resonant filter)
+        const sawOsc = context.createOscillator();
+        const sawGain = context.createGain();
+        sawOsc.type = 'sawtooth';
+        // Subtle micro-pitch drop on string hit (gives authentic physical string snap)
+        sawOsc.frequency.setValueAtTime(hz * 1.025, now);
+        sawOsc.frequency.exponentialRampToValueAtTime(hz, now + 0.02);
+        sawGain.gain.setValueAtTime(0.55, now);
+        sawGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+        sawOsc.connect(sawGain);
+        sawGain.connect(voiceGain);
+        voice.nodes.push(sawOsc, sawGain);
+
+        // Layer 3: Triangle body (adds punchy mid-bass warmth)
+        const triOsc = context.createOscillator();
+        const triGain = context.createGain();
+        triOsc.type = 'triangle';
+        triOsc.frequency.setValueAtTime(hz, now);
+        triGain.gain.setValueAtTime(0.40, now);
+        triGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.70);
+        triOsc.connect(triGain);
+        triGain.connect(voiceGain);
+        voice.nodes.push(triOsc, triGain);
+
+        // Layer 4: Upper presence octave (sine at 2*hz for small speakers / headphones)
+        const harmOsc = context.createOscillator();
+        const harmGain = context.createGain();
+        harmOsc.type = 'sine';
+        harmOsc.frequency.setValueAtTime(hz * 2, now);
+        harmGain.gain.setValueAtTime(0.20, now);
+        harmGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+        harmOsc.connect(harmGain);
+        harmGain.connect(voiceGain);
+        voice.nodes.push(harmOsc, harmGain);
+
+        // Start and stop all oscillators
+        const oscillators = [subOsc, sawOsc, triOsc, harmOsc];
+        let remaining = oscillators.length;
+        oscillators.forEach(osc => {
+          osc.onended = () => {
             if (voice.disposed) return;
-            tone.disconnect();
-            envelope.disconnect();
-            voice.remaining--;
-            if (voice.remaining === 0) {
+            try { osc.disconnect(); } catch { /* Ignore */ }
+            remaining--;
+            if (remaining === 0) {
               voice.disposed = true;
               voices.delete(voice);
             }
           };
-          tone.start(now);
-          tone.stop(now + TAIL_SECONDS);
+          osc.start(now);
+          osc.stop(now + TAIL_SECONDS);
         });
       } catch (error) {
         stopVoice(voice);

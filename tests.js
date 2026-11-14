@@ -35,6 +35,7 @@
       this.destination = {};
       this.gains = [];
       this.tones = [];
+      this.filters = [];
       FakeAudioContext.instances.push(this);
     }
     async resume() { this.state = 'running'; }
@@ -51,6 +52,16 @@
         stop(time) { this.stops.push(time); }
       };
       this.tones.push(node);
+      return node;
+    }
+    createBiquadFilter() {
+      const node = {
+        type: 'lowpass',
+        frequency: new FakeParam(),
+        Q: new FakeParam(),
+        connect() {}, disconnect() { this.disconnected = true; }
+      };
+      this.filters.push(node);
       return node;
     }
   }
@@ -244,7 +255,7 @@
     await test('Higher temperature strictly maps to higher pitch (The higher the temperature, the higher the pitch)', () => {
       const notes = [0, 1, 2, 3, 4, 5, 6].map(t => tempTrack.pitchForTemperature(t, 'fixed', [], 'bass'));
       assert(notes.map(n => n.name).join(',') === 'Do,Ré,Mi,Fa,Sol,La,Si', 'Temperature note scale incorrect.');
-      assert(notes.map(n => n.pitch).join(',') === 'C3,D3,E3,F3,G3,A3,B3', 'Bass pitch octave incorrect.');
+      assert(notes.map(n => n.pitch).join(',') === 'C2,D2,E2,F2,G2,A2,B2', 'Bass pitch octave incorrect.');
       for (let i = 0; i < notes.length - 1; i++) {
         assert(notes[i + 1].hz > notes[i].hz, `Pitch at T=${i + 1} (${notes[i + 1].hz} Hz) not higher than T=${i} (${notes[i].hz} Hz).`);
       }
@@ -258,7 +269,7 @@
         const expectedNotes = 'Do,Ré,Mi,Fa,Sol,La,Si,Do';
         assert(notes.map(n => n.name).join(',') === expectedNotes, `${inst} test pattern notes incorrect.`);
         const expectedPitches = inst === 'bass'
-          ? 'C3,D3,E3,F3,G3,A3,B3,C4'
+          ? 'C2,D2,E2,F2,G2,A2,B2,C3'
           : 'C4,D4,E4,F4,G4,A4,B4,C5';
         assert(notes.map(n => n.pitch).join(',') === expectedPitches, `${inst} test pattern pitches incorrect.`);
         near(notes[7].hz, notes[0].hz * 2);
@@ -267,7 +278,7 @@
 
     await test('Phrase ending never changes uploaded cold pixels or transparent rests in temperature track', () => {
       const coldSpot = { index: 7, temperature: 0, rest: false };
-      assert(tempTrack.pitchForSpot(coldSpot, 'fixed', [], false, 'bass').pitch === 'C3', 'Uploaded cold pixel was transposed.');
+      assert(tempTrack.pitchForSpot(coldSpot, 'fixed', [], false, 'bass').pitch === 'C2', 'Uploaded cold pixel was transposed.');
       assert(tempTrack.pitchForSpot(coldSpot, 'fixed', [], false, 'piano').pitch === 'C4', 'Uploaded cold pixel was transposed in piano.');
       assert(tempTrack.pitchForSpot({ ...coldSpot, rest: true }, 'fixed', [], true, 'bass') === null, 'Transparent rest played high Do.');
     });
@@ -307,12 +318,12 @@
       bass.stopAll();
     });
 
-    await test('A 130.8 Hz bass note synthesizes fundamental, triangle sub, and harmonics', async () => {
+    await test('A 65.4 Hz deep bass note synthesizes fundamental, pluck filter, and harmonics', async () => {
       const { bass, context } = await bassFixture();
-      bass.play(130.8);
+      bass.play(65.41);
       const freqs = context.tones.map(tone => Math.round(tone.frequency.value));
-      assert(freqs.includes(131), 'Fundamental 130.8 Hz missing.');
-      assert(freqs.includes(262), 'Second harmonic 261.6 Hz missing.');
+      assert(freqs.includes(65) || freqs.includes(67), 'Fundamental 65.4 Hz missing.');
+      assert(freqs.includes(131), 'Second harmonic 130.8 Hz missing.');
       bass.stopAll();
     });
 

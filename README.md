@@ -4,18 +4,18 @@ A local, buildless planetary sonification studio: turn Earth temperature variati
 
 ## Tracks
 
-### Track 2: Earth Temperature (Temperature variation → bass / piano)
+### Track 2: Earth Temperature (Temperature variation → Earth bass)
 - **Principle**: The higher the temperature, the higher the pitch.
-  - Freezing/Cold (Navy / Blue, T = 0..1) → **Do / Ré**
-  - Temperate/Mild (Cyan / Green, T = 2..3) → **Mi / Fa**
-  - Warm/Hot/Scorching (Yellow / Red / Maroon, T = 4..6) → **Sol / La / Si**
-- **Instruments**:
-  - **Earth Bass** (synthesized warm planetary bass, C3–C4: 130.8 Hz to 261.6 Hz)
-  - **Piano** (synthesized melodic tone, C4–C5: 261.6 Hz to 523.3 Hz)
+  - Freezing/Cold (Navy / Blue, T = 0..1) → **Do / Ré** (C2 / D2: 65.4 / 73.4 Hz)
+  - Temperate/Mild (Cyan / Green, T = 2..3) → **Mi / Fa** (E2 / F2: 82.4 / 87.3 Hz)
+  - Warm/Hot/Scorching (Yellow / Red / Maroon, T = 4..6) → **Sol / La / Si** (G2 / A2 / B2: 98.0 / 110.0 / 123.5 Hz)
+- **Bass Sound Synthesis**:
+  - **Plucked Electric / Synth Bass**: Multilayer Web Audio architecture with resonant lowpass filter sweep ($Q = 3.6$), warm sine sub-bass, harmonic sawtooth body with string-snap transient, and mid-frequency presence.
+  - **Bass Registers**: Deep Bass (C2–C3 · 65–131 Hz, authentic 4-string bass guitar range) and Tenor Bass (C3–C4 · 131–262 Hz).
 - **Built-in Presets**:
   - **Earth thermal map** (`earth-temperature.jpg`): samples 8 geographic regions across the globe (Pacific Ocean, Amazon/South America, Atlantic Ocean, Central Africa, Indian Ocean, Southeast Asia, Western Pacific).
-  - **Temperature test pattern**: 8 thermal color bands (Navy, Blue, Cyan, Green, Yellow, Red, Maroon, Navy) playing **Do → Ré → Mi → Fa → Sol → La → Si → High Do**.
-- **Interactive sampling**: Click anywhere on the map to sample the local temperature and preview its note.
+  - **Temperature test pattern**: 8 thermal color bands (Navy, Blue, Cyan, Green, Yellow, Red, Maroon, Navy) playing **Do → Ré → Mi → Fa → Sol → La Si → High Do**.
+- **Interactive sampling**: Click anywhere on the map to sample the local temperature and preview its bass note.
 
 ### Track 1: Night Lights (Brightness → piano)
 - Sample NASA night-lights imagery and map brightness `0..255` to piano notes **Do → Ré → Mi → Fa → Sol → La → Si** (C4–B4).
@@ -29,11 +29,12 @@ Open `index.html` directly in any modern browser (Chrome, Edge, Firefox, or Safa
 ## Listening test
 
 1. Select **Earth Temperature** (active by default).
-2. Press **Play scan**. It scans across the 8 planetary locations at 0.5-second intervals.
-3. Switch between **Earth Bass** and **Piano** in the Instrument controls to compare the deep planetary bass with the piano timbre.
-4. Select **Use test pattern** and press **Play scan** to verify the full diatonic scale: **Do → Ré → Mi → Fa → Sol → La → Si → High Do**.
-5. Switch to **Night Lights** tab to scan nighttime light brightness.
-6. Adjust **Amplitude / volume** to change loudness independently of pitch.
+2. Press **Play scan**. It scans across the 8 planetary locations at 0.5-second intervals playing the rich plucked Earth bass notes.
+3. Switch between **Deep Bass (C2–C3)** and **Tenor Bass (C3–C4)** in the Bass Register controls to hear the octave difference.
+4. Select **Use test pattern** and press **Play scan** to verify the full diatonic bass scale: **Do → Ré → Mi → Fa → Sol → La → Si → High Do**.
+5. Click anywhere on the globe (e.g. Antarctica for sub-bass Do, Sahara/tropics for scorching Si) to hear that exact point.
+6. Switch to **Night Lights** tab anytime to return to the brightness → piano track.
+7. Adjust **Amplitude / volume** to change loudness independently of pitch.
 
 ## Mathematical & scientific mapping
 

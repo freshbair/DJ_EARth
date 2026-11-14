@@ -1,19 +1,27 @@
-/* Pure image-to-note logic for the temperature → bass/piano layer.
+/* Pure image-to-note logic for the temperature → bass layer.
    No canvas, audio, or DOM state lives here, so future layers can stay separate. */
 (function (root) {
   'use strict';
 
   const names = ['Do', 'Ré', 'Mi', 'Fa', 'Sol', 'La', 'Si'];
 
-  // Bass octave (C3–B3: warm, resonant planetary bass)
-  const bassPitches = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3'];
-  const bassMidi = [48, 50, 52, 53, 55, 57, 59];
-  const BASS_NOTES = Object.freeze(names.map((name, index) => Object.freeze({
-    name, pitch: bassPitches[index], hz: 440 * 2 ** ((bassMidi[index] - 69) / 12)
+  // Deep Bass Octave (C2–B2: 65.4 Hz to 123.5 Hz) - Standard electric/acoustic bass range
+  const deepBassPitches = ['C2', 'D2', 'E2', 'F2', 'G2', 'A2', 'B2'];
+  const deepBassMidi = [36, 38, 40, 41, 43, 45, 47];
+  const DEEP_BASS_NOTES = Object.freeze(names.map((name, index) => Object.freeze({
+    name, pitch: deepBassPitches[index], hz: 440 * 2 ** ((deepBassMidi[index] - 69) / 12)
   })));
-  const HIGH_DO_BASS = Object.freeze({ name: 'Do', pitch: 'C4', hz: BASS_NOTES[0].hz * 2 });
+  const HIGH_DO_DEEP_BASS = Object.freeze({ name: 'Do', pitch: 'C3', hz: DEEP_BASS_NOTES[0].hz * 2 });
 
-  // Piano octave (C4–B4: matching the light layer)
+  // Tenor Bass Octave (C3–B3: 130.8 Hz to 246.9 Hz)
+  const tenorBassPitches = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3'];
+  const tenorBassMidi = [48, 50, 52, 53, 55, 57, 59];
+  const TENOR_BASS_NOTES = Object.freeze(names.map((name, index) => Object.freeze({
+    name, pitch: tenorBassPitches[index], hz: 440 * 2 ** ((tenorBassMidi[index] - 69) / 12)
+  })));
+  const HIGH_DO_TENOR_BASS = Object.freeze({ name: 'Do', pitch: 'C4', hz: TENOR_BASS_NOTES[0].hz * 2 });
+
+  // Piano Octave (C4–B4: 261.6 Hz to 493.9 Hz)
   const pianoPitches = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4'];
   const pianoMidi = [60, 62, 64, 65, 67, 69, 71];
   const PIANO_NOTES = Object.freeze(names.map((name, index) => Object.freeze({
@@ -54,11 +62,15 @@
   ]);
 
   function getNotes(instrument = 'bass') {
-    return instrument === 'piano' ? PIANO_NOTES : BASS_NOTES;
+    if (instrument === 'piano') return PIANO_NOTES;
+    if (instrument === 'tenor-bass') return TENOR_BASS_NOTES;
+    return DEEP_BASS_NOTES;
   }
 
   function getHighDo(instrument = 'bass') {
-    return instrument === 'piano' ? HIGH_DO_PIANO : HIGH_DO_BASS;
+    if (instrument === 'piano') return HIGH_DO_PIANO;
+    if (instrument === 'tenor-bass') return HIGH_DO_TENOR_BASS;
+    return HIGH_DO_DEEP_BASS;
   }
 
   function validateImage(image) {
@@ -71,7 +83,7 @@
 
   function isRestPixel(r, g, b, a = 255) {
     if (a === 0) return true;
-    // Pure off-map white background in projected planetary maps (e.g. outside the globe)
+    // Pure off-map white background in projected planetary maps (outside the globe)
     if (r >= 250 && g >= 250 && b >= 250) return true;
     return false;
   }
@@ -148,6 +160,65 @@
     return { width, height, data };
   }
 
+  function colorRGBForTemperature(temp) {
+    const t = Math.max(0, Math.min(6, temp));
+    for (let i = 0; i < THERMAL_KEYS.length - 1; i++) {
+      const k0 = THERMAL_KEYS[i];
+      const k1 = THERMAL_KEYS[i + 1];
+      if (t >= k0.t && t <= k1.t) {
+        const frac = (t - k0.t) / (k1.t - k0.t);
+        return {
+          r: Math.round(k0.r + frac * (k1.r - k0.r)),
+          g: Math.round(k0.g + frac * (k1.g - k0.g)),
+          b: Math.round(k0.b + frac * (k1.b - k0.b))
+        };
+      }
+    }
+    return { r: 127, g: 16, b: 9 };
+  }
+
+  // Generates a self-contained planetary thermal map that never fails or taints in file:// mode
+  function createEarthThermalMap() {
+    const width = 800;
+    const height = 400;
+    const data = new Uint8ClampedArray(width * height * 4);
+    const cx = width / 2;
+    const cy = height / 2;
+    const rx = width * 0.44;
+    const ry = height * 0.44;
+
+    for (let y = 0; y < height; y++) {
+      const dy = (y - cy) / ry;
+      for (let x = 0; x < width; x++) {
+        const dx = (x - cx) / rx;
+        const offset = (y * width + x) * 4;
+
+        // Elliptical projection boundary
+        if (dx * dx + dy * dy > 1.0) {
+          data[offset] = 255;
+          data[offset + 1] = 255;
+          data[offset + 2] = 255;
+          data[offset + 3] = 255;
+          continue;
+        }
+
+        // Planetary thermal distribution:
+        // Hot tropical belt at equator (y=cy), freezing poles (y=0, y=height)
+        const latNorm = Math.abs(dy); // 0 at equator, 1 at poles
+        // Temperature index: 5.7 at equator down to 0.1 at poles, plus longitudinal waves
+        const wave = 0.4 * Math.sin(dx * 6) + 0.25 * Math.cos(dy * 5 + dx * 3);
+        const temp = Math.max(0, Math.min(6, (1 - latNorm ** 1.3) * 5.6 + wave));
+        const color = colorRGBForTemperature(temp);
+
+        data[offset] = color.r;
+        data[offset + 1] = color.g;
+        data[offset + 2] = color.b;
+        data[offset + 3] = 255;
+      }
+    }
+    return { width, height, data };
+  }
+
   function scanSpots(image, customSpots = null) {
     validateImage(image);
     if (Array.isArray(customSpots) && customSpots.length === 8) {
@@ -190,7 +261,6 @@
     let distance = Infinity;
     centers.forEach((center, index) => {
       const candidate = Math.abs(value - center);
-      // Ties favor the colder (earlier) group
       if (candidate < distance) {
         best = index;
         distance = candidate;
@@ -205,12 +275,10 @@
     const requested = Number.isFinite(maxSamples) ? Math.floor(maxSamples) : 32768;
     const sampleCount = Math.min(pixels, Math.max(1, requested));
 
-    // Sample across a 2D grid
     const rows = Math.min(image.height, sampleCount,
       Math.max(1, Math.round(Math.sqrt(sampleCount * image.height / image.width))));
     const columns = Math.min(image.width, Math.max(1, Math.floor(sampleCount / rows)));
 
-    // Discretize temperature into 61 bins (0.0, 0.1, ..., 6.0)
     const bins = new Uint32Array(61);
     for (let row = 0; row < rows; row++) {
       const y = Math.floor((row + 0.5) * image.height / rows);
@@ -235,7 +303,6 @@
     if (values.length <= 1) return values;
     const count = Math.min(7, values.length);
 
-    // Spread initial centers across observed values
     let centers = Array.from({ length: count }, (_, i) =>
       values[Math.round(i * (values.length - 1) / (count - 1))]);
 
@@ -280,26 +347,33 @@
   }
 
   function colorForTemperature(temp) {
-    const t = Math.max(0, Math.min(6, temp));
-    for (let i = 0; i < THERMAL_KEYS.length - 1; i++) {
-      const k0 = THERMAL_KEYS[i];
-      const k1 = THERMAL_KEYS[i + 1];
-      if (t >= k0.t && t <= k1.t) {
-        const frac = (t - k0.t) / (k1.t - k0.t);
-        const r = Math.round(k0.r + frac * (k1.r - k0.r));
-        const g = Math.round(k0.g + frac * (k1.g - k0.g));
-        const b = Math.round(k0.b + frac * (k1.b - k0.b));
-        return `rgb(${r}, ${g}, ${b})`;
-      }
-    }
-    return 'rgb(127, 16, 9)';
+    const c = colorRGBForTemperature(temp);
+    return `rgb(${c.r}, ${c.g}, ${c.b})`;
   }
 
   root.DJEarthTemperature = Object.freeze({
-    BASS_NOTES, PIANO_NOTES, HIGH_DO_BASS, HIGH_DO_PIANO,
-    THERMAL_KEYS, TEST_TEMPS, TEST_COLORS,
-    temperatureFromRGB, temperatureLabel, createTestPattern, scanSpots,
-    learnTemperatureGroups, pitchForTemperature, pitchForSpot,
-    nearestCenter, colorForTemperature, isRestPixel
+    BASS_NOTES: DEEP_BASS_NOTES,
+    DEEP_BASS_NOTES,
+    TENOR_BASS_NOTES,
+    PIANO_NOTES,
+    HIGH_DO_BASS: HIGH_DO_DEEP_BASS,
+    HIGH_DO_DEEP_BASS,
+    HIGH_DO_TENOR_BASS,
+    HIGH_DO_PIANO,
+    THERMAL_KEYS,
+    TEST_TEMPS,
+    TEST_COLORS,
+    temperatureFromRGB,
+    temperatureLabel,
+    createTestPattern,
+    createEarthThermalMap,
+    scanSpots,
+    learnTemperatureGroups,
+    pitchForTemperature,
+    pitchForSpot,
+    nearestCenter,
+    colorForTemperature,
+    colorRGBForTemperature,
+    isRestPixel
   });
 })(globalThis);

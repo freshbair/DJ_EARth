@@ -1,7 +1,7 @@
 /* DJ_EARth App Controller
    Supports both planetary tracks:
    Track 1: Night lights (Brightness → piano)
-   Track 2: Earth Temperature (Temperature variation → bass / piano)
+   Track 2: Earth Temperature (Temperature variation → Earth bass)
 */
 (function (global) {
   'use strict';
@@ -13,7 +13,6 @@
   const $ = selector => document.querySelector(selector);
   const canvas = $('#sourceCanvas');
   const context = canvas.getContext('2d');
-  const stage = $('#imageStage');
   const overlay = $('#spotOverlay');
   const route = $('#scanRoute');
   const playButton = $('#playScan');
@@ -28,10 +27,10 @@
   const trackLightBtn = $('#trackLightBtn');
   const instrumentFieldset = $('#instrumentFieldset');
   const pitchModes = document.querySelectorAll('input[name="pitchMode"]');
-  const instrumentModes = document.querySelectorAll('input[name="instrumentMode"]');
+  const registerModes = document.querySelectorAll('input[name="bassRegister"]');
 
   const STEP_MS = 500;
-  const RELEASE_MS = 1000;
+  const RELEASE_MS = 1100;
 
   // Preset 8 geographic spots across the Earth globe for earth-temperature.jpg
   const EARTH_PRESET_SPOTS = [
@@ -46,7 +45,7 @@
   ];
 
   let currentTrack = 'temperature'; // 'temperature' | 'light'
-  let currentInstrument = 'bass';    // 'bass' | 'piano'
+  let bassRegister = 'deep';        // 'deep' (C2–C3) | 'tenor' (C3–C4)
   let image;
   let imageName = 'Earth thermal map';
   let spots = [];
@@ -62,12 +61,13 @@
   let loading = false;
 
   function activeVoice() {
-    return currentInstrument === 'piano' ? piano : bass;
+    return currentTrack === 'temperature' ? bass : piano;
   }
 
   function noteAt(spot) {
     if (currentTrack === 'temperature') {
-      return tempTrack.pitchForSpot(spot, mode, centers, isTestPattern, currentInstrument);
+      const inst = bassRegister === 'tenor' ? 'tenor-bass' : 'bass';
+      return tempTrack.pitchForSpot(spot, mode, centers, isTestPattern, inst);
     }
     return light.pitchForSpot(spot, mode, centers, isTestPattern);
   }
@@ -94,12 +94,12 @@
       $('#activeNote').textContent = note ? `${note.name} · ${note.pitch} · ${note.hz.toFixed(1)} Hz` : 'Rest';
       $('#scanPosition').textContent = `${index + 1} / 8`;
       const loc = spot.label ? ` (${spot.label})` : '';
-      status.textContent = `Spot ${index + 1}${loc}: ${spot.rest ? 'off-globe background — rest' : `temp ${spot.temperature.toFixed(1)} / 6 (${tempTrack.temperatureLabel(spot.temperature)}), ${note.name} (${note.pitch})`}.`;
+      status.textContent = `Spot ${index + 1}${loc}: ${spot.rest ? 'off-globe background — rest' : `temp ${spot.temperature.toFixed(1)} / 6 (${tempTrack.temperatureLabel(spot.temperature)}), Earth bass: ${note.name} (${note.pitch} · ${note.hz.toFixed(1)} Hz)`}.`;
     } else {
       $('#activeBrightness').textContent = spot.rest ? '—' : String(spot.brightness);
       $('#activeNote').textContent = note ? `${note.name} · ${note.pitch} · ${note.hz.toFixed(1)} Hz` : 'Rest';
       $('#scanPosition').textContent = `${index + 1} / 8`;
-      status.textContent = `Spot ${index + 1}: ${spot.rest ? 'fully transparent — rest' : `brightness ${spot.brightness}, ${note.name} (${note.pitch})`}.`;
+      status.textContent = `Spot ${index + 1}: ${spot.rest ? 'fully transparent — rest' : `brightness ${spot.brightness}, piano: ${note.name} (${note.pitch})`}.`;
     }
     return note;
   }
@@ -184,11 +184,12 @@
     if (currentTrack === 'temperature') {
       const rest = tempTrack.isRestPixel(r, g, b, a);
       const temp = rest ? null : tempTrack.temperatureFromRGB(r, g, b);
-      note = rest ? null : tempTrack.pitchForTemperature(temp, mode, centers, currentInstrument);
+      const inst = bassRegister === 'tenor' ? 'tenor-bass' : 'bass';
+      note = rest ? null : tempTrack.pitchForTemperature(temp, mode, centers, inst);
       $('#activeBrightness').textContent = rest ? '—' : `${temp.toFixed(1)} · ${tempTrack.temperatureLabel(temp)}`;
       $('#activeNote').textContent = note ? `${note.name} · ${note.pitch} · ${note.hz.toFixed(1)} Hz` : 'Rest';
       $('#scanPosition').textContent = `Map (${clampedX}, ${clampedY})`;
-      status.textContent = rest ? 'Clicked off-globe background — rest.' : `Clicked (${clampedX}, ${clampedY}): temp ${temp.toFixed(1)} / 6 (${tempTrack.temperatureLabel(temp)}), ${note.name} (${note.pitch}).`;
+      status.textContent = rest ? 'Clicked off-globe background — rest.' : `Clicked (${clampedX}, ${clampedY}): temp ${temp.toFixed(1)} / 6 (${tempTrack.temperatureLabel(temp)}), Earth bass: ${note.name} (${note.pitch} · ${note.hz.toFixed(1)} Hz).`;
     } else {
       const rest = a === 0;
       const br = rest ? null : light.brightnessFromRGB(r, g, b);
@@ -196,7 +197,7 @@
       $('#activeBrightness').textContent = rest ? '—' : String(br);
       $('#activeNote').textContent = note ? `${note.name} · ${note.pitch} · ${note.hz.toFixed(1)} Hz` : 'Rest';
       $('#scanPosition').textContent = `Image (${clampedX}, ${clampedY})`;
-      status.textContent = rest ? 'Clicked transparent pixel — rest.' : `Clicked (${clampedX}, ${clampedY}): brightness ${br}, ${note.name} (${note.pitch}).`;
+      status.textContent = rest ? 'Clicked transparent pixel — rest.' : `Clicked (${clampedX}, ${clampedY}): brightness ${br}, piano: ${note.name} (${note.pitch}).`;
     }
 
     try {
@@ -226,7 +227,10 @@
         metricStr = spot.rest ? 'Transparent' : `${spot.brightness} / 255`;
       }
 
-      const noteLabel = note ? (note.name === 'Do' && (note.pitch === 'C5' || (currentInstrument === 'bass' && note.pitch === 'C4')) ? 'High Do' : note.name) : 'Rest';
+      const isHighDo = note && note.name === 'Do' && (
+        note.pitch === 'C5' || note.pitch === 'C4' || note.pitch === 'C3'
+      ) && spot.index === 7;
+      const noteLabel = note ? (isHighDo ? 'High Do' : note.name) : 'Rest';
       const label = `Preview spot ${index + 1}: ${metricStr}, ${noteLabel}${note ? `, ${note.pitch}` : ''}`;
 
       const marker = document.createElement('button');
@@ -266,8 +270,9 @@
       $('#learningSummary').textContent = centers.length
         ? `${centers.length} ${centers.length === 1 ? 'group' : 'groups'} learned from the current map. Center values are temperatures on a 0–6 scale, sorted coldest to hottest.`
         : 'No valid temperature pixels found in the training sample.';
-      $('#learningHelper').textContent = 'One-dimensional k-means learns up to seven temperature groups from this map, ordered from freezing to scorching across Do–Si. In “Learn from image” mode, pitches align to these learned centers.';
+      $('#learningHelper').textContent = 'One-dimensional k-means learns up to seven temperature groups from this map, ordered from freezing to scorching across Do–Si. In “Learn from image” mode, Earth bass pitches align to these learned centers.';
 
+      const inst = bassRegister === 'tenor' ? 'tenor-bass' : 'bass';
       centers.forEach(center => {
         const item = document.createElement('li');
         const swatch = document.createElement('span');
@@ -277,7 +282,7 @@
         const text = document.createElement('strong');
         text.textContent = center.toFixed(1);
         const label = document.createElement('small');
-        const note = tempTrack.pitchForTemperature(center, 'learned', centers, currentInstrument);
+        const note = tempTrack.pitchForTemperature(center, 'learned', centers, inst);
         label.textContent = `${note.name} · ${note.pitch}`;
         item.append(swatch, text, label);
         list.append(item);
@@ -351,11 +356,10 @@
 
     if (isTestPattern) {
       const notes = spots.map(spot => noteAt(spot));
-      const passed = notes.map(note => note.pitch).join(',') === (
-        currentTrack === 'temperature'
-          ? (currentInstrument === 'bass' ? 'C3,D3,E3,F3,G3,A3,B3,C4' : 'C4,D4,E4,F4,G4,A4,B4,C5')
-          : 'C4,D4,E4,F4,G4,A4,B4,C5'
-      );
+      const expected = currentTrack === 'temperature'
+        ? (bassRegister === 'tenor' ? 'C3,D3,E3,F3,G3,A3,B3,C4' : 'C2,D2,E2,F2,G2,A2,B2,C3')
+        : 'C4,D4,E4,F4,G4,A4,B4,C5';
+      const passed = notes.map(note => note.pitch).join(',') === expected;
       const actual = notes.map(note => `${note.name} (${note.pitch})`).join(' → ');
       result.textContent = `${passed ? 'Test phrase check passed' : 'Test phrase check failed'}: ${actual}`;
     }
@@ -377,13 +381,14 @@
 
       $('#trackEyebrow').textContent = 'DJ_EARth / SECOND TRACK';
       $('#trackHeading').textContent = 'Hear the Earth’s temperature.';
-      $('#trackIntro').textContent = 'Eight places, eight notes. Scan the thermal map from left to right and hear planetary temperature variation. The higher the temperature, the higher the pitch.';
+      $('#trackIntro').textContent = 'Eight places, eight bass notes. Scan the thermal map from left to right and hear planetary temperature variation. The higher the temperature, the higher the pitch.';
       $('#trackTag').textContent = 'Temperature variation → Earth bass · Higher temperature = higher pitch';
       $('#metricLabel').textContent = 'Temperature / 6';
+      $('#instrumentLabel').textContent = 'Earth bass note';
       uploadLabel.childNodes[0].textContent = 'Upload temperature map\n';
       useEarthMapBtn.hidden = false;
       instrumentFieldset.hidden = false;
-      $('#footerScaleExplanation').textContent = 'Temperature track: Navy (0) → Blue (1) → Cyan (2) → Green (3) → Yellow (4) → Red (5) → Maroon (6) maps to Do, Ré, Mi, Fa, Sol, La, Si. The higher the temperature, the higher the pitch.';
+      $('#footerScaleExplanation').textContent = 'Temperature track: Navy (0) → Blue (1) → Cyan (2) → Green (3) → Yellow (4) → Red (5) → Maroon (6) maps to Earth bass notes Do, Ré, Mi, Fa, Sol, La, Si. The higher the temperature, the higher the pitch.';
 
       loadEarthPresetMap();
     } else {
@@ -397,6 +402,7 @@
       $('#trackIntro').textContent = 'Eight places, eight piano notes. Scan an image from left to right and hear its brightness.';
       $('#trackTag').textContent = 'Nighttime light intensity → piano';
       $('#metricLabel').textContent = 'Brightness / 255';
+      $('#instrumentLabel').textContent = 'Piano note';
       uploadLabel.childNodes[0].textContent = 'Upload NASA night-lights image\n';
       useEarthMapBtn.hidden = true;
       instrumentFieldset.hidden = true;
@@ -418,14 +424,14 @@
     status.textContent = `${mode === 'fixed' ? 'Fixed scale' : 'Learn from image'} mode selected. Press Play scan.`;
   }
 
-  function setInstrument(inst) {
-    if (inst !== 'bass' && inst !== 'piano') return;
+  function setBassRegister(reg) {
+    if (reg !== 'deep' && reg !== 'tenor') return;
     stopPlayback();
-    currentInstrument = inst;
-    instrumentModes.forEach(input => { input.checked = input.value === inst; });
+    bassRegister = reg;
+    registerModes.forEach(input => { input.checked = input.value === reg; });
     renderRoute();
     renderLearning();
-    status.textContent = `Instrument changed to ${inst === 'bass' ? 'Earth Bass (C3–C4)' : 'Piano (C4–C5)'}.`;
+    status.textContent = `Bass register set to ${reg === 'deep' ? 'Deep Bass (C2–C3 · 65–131 Hz)' : 'Tenor Bass (C3–C4 · 131–262 Hz)'}.`;
   }
 
   function useTestPattern() {
@@ -462,9 +468,10 @@
       const pixels = stagingContext.getImageData(0, 0, staging.width, staging.height);
       applyImage(pixels, 'Earth temperature map', false, true);
     } catch {
-      // Fallback to test pattern if image file cannot be loaded directly
+      // In local file:// environments where getImageData is restricted on local files,
+      // load the built-in procedural planetary thermal map:
       if (request === imageRequest) {
-        applyImage(tempTrack.createTestPattern(), 'Temperature test pattern', true);
+        applyImage(tempTrack.createEarthThermalMap(), 'Earth thermal map', false, false);
       }
     } finally {
       if (request === imageRequest) {
@@ -530,8 +537,8 @@
     if (input.checked) setMode(input.value);
   }));
 
-  instrumentModes.forEach(input => input.addEventListener('change', () => {
-    if (input.checked) setInstrument(input.value);
+  registerModes.forEach(input => input.addEventListener('change', () => {
+    if (input.checked) setBassRegister(input.value);
   }));
 
   upload.addEventListener('change', () => { void uploadImage(upload.files[0]); });
@@ -554,7 +561,7 @@
   // Exposed API for automated integration checks and tests
   global.djEarthApp = Object.freeze({
     playScan, previewSpot, previewCoordinates, stop: stopPlayback,
-    setMode, setTrack, setInstrument, uploadImage, useTestPattern, loadEarthPresetMap,
+    setMode, setTrack, setBassRegister, uploadImage, useTestPattern, loadEarthPresetMap,
     loadImageData(nextImage, name = 'Local image', isTest = false) {
       imageRequest++;
       loading = false;
@@ -562,7 +569,7 @@
       applyImage(nextImage, name, isTest);
     },
     getState: () => ({
-      currentTrack, currentInstrument, imageName,
+      currentTrack, bassRegister, imageName,
       width: image ? image.width : 0,
       height: image ? image.height : 0,
       mode,
