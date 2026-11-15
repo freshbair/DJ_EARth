@@ -380,6 +380,13 @@
     loading = false;
     playButton.disabled = false;
     currentTrack = track;
+    // A different track uses a different sample format. Clear the previous
+    // samples before its asynchronous image load or a pitch-mode change.
+    image = undefined;
+    spots = [];
+    centers = [];
+    renderRoute();
+    renderLearning();
 
     if (currentTrack === 'temperature') {
       trackTempBtn.classList.add('active');

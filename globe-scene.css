@@ -1,0 +1,19 @@
+/* The scene stays decorative and lets all pointer interactions pass to the page. */
+.record-art .globe-canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 108%;
+  height: auto;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  display: block;
+  pointer-events: none;
+  z-index: 2;
+  filter: drop-shadow(0 20px 28px #01081599);
+}
+.record-art.has-globe .planet-record { visibility: hidden; }
+.record-art.has-globe .record-caption { z-index: 3; }
+@media (prefers-reduced-motion: reduce) {
+  .record-art .globe-canvas { transition: none; }
+}

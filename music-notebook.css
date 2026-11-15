@@ -1,0 +1,43 @@
+@font-face { font-family: "Caveat"; src: url("assets/fonts/caveat/caveat.ttf") format("truetype"); font-style: normal; font-weight: 400 700; font-display: swap; }
+/* A musician's notebook: ink, paper, margin notes, and instrument sketches. */
+.playground { background: url("assets/paper-grain.svg") repeat, #f1eee4; border-radius: 6px 18px 8px 14px; border-top: 1px solid #fff8; --border: #c4c7bc; --muted: #4d625f; box-shadow: 0 24px 70px #0004, 6px 8px 0 -2px #bfc6bd; }
+.instrument-library { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+.session-heading { position: relative; padding-bottom: 20px; margin-bottom: 31px; gap: 25px; }
+.session-heading::after { content: ""; position: absolute; left: 0; bottom: 0; width: 70%; height: 4px; border-bottom: 1px solid #64899575; border-radius: 50%; transform: rotate(-.4deg); pointer-events: none; }
+.session-heading > div:first-child { flex: 1; min-width: 0; }
+.session-heading .eyebrow { letter-spacing: .13em; color: #526c73; }
+#trackHeading { position: relative; display: inline-block; }
+#trackHeading::after { content: ""; display: block; height: 9px; margin-top: -5px; border-bottom: 3px solid #9cc1ca8c; border-radius: 50%; transform: rotate(-2deg); }
+.instrument-sketch { flex: 0 0 175px; color: #315d73; text-align: center; transform: rotate(-3deg); }
+.instrument-sketch svg { display: block; width: 100%; height: 115px; overflow: visible; }
+.instrument-sketch > span { display: block; font: 25px/1.1 "Caveat", cursive; color: #426d7a; margin-top: -8px; }
+.playground .studio-grid { gap: 28px; }
+#trackImagePanel { position: relative; border: 1px solid #b5c1bc; border-radius: 3px 8px 4px 7px; background: #faf8f1; box-shadow: 3px 5px 0 #a7b2ac28; }
+#trackImagePanel::before { content: ""; position: absolute; top: -11px; left: 43%; width: 78px; height: 22px; background: #d4c8a876; border-inline: 1px solid #b1a98b30; transform: rotate(-5deg); pointer-events: none; }
+.playground .section-kicker { font: 23px/1.2 "Caveat", cursive; letter-spacing: 0; color: #476b78; margin-bottom: 10px; }
+#trackImageTitle { font-family: var(--serif); font-weight: 500; font-size: 25px; }
+#trackImageMeta { margin-top: 8px; }
+.playground .track-image-figure { padding: 9px; background: #fffefa; border: 1px solid #d6d8cc; box-shadow: 0 3px 8px #2139430d; }
+.playground .track-image-figure figcaption { font-size: 11px; margin: 11px 2px 3px; }
+.playground .image-stage, .playground .track-image-figure img { border-radius: 1px; }
+/* Do not tilt or letterbox the interactive canvas: sampling depends on its bounds. */
+.playground .scan-route { gap: 5px; padding: 15px 0 4px; background: repeating-linear-gradient(to bottom, transparent 0 13px, #7699a620 13px 14px); }
+.playground .route-step { border: 0; border-bottom: 2px solid #91b0b9; border-radius: 3px 3px 0 0; background: #f6f4eb; box-shadow: 0 2px 3px #243f4b1a; }
+.playground .route-step:nth-child(3n+1) { border-bottom-color: #608697; }
+.playground .route-step.active { background: #235c79; color: #fff; }
+.playground .note-name { font-family: var(--serif); font-size: 19px; font-style: italic; }
+.playground .sound-deck { position: relative; overflow: hidden; border-radius: 8px 4px 12px 5px; background: #123344; border-color: #123344; box-shadow: 5px 7px 0 #91a5a329; }
+.playground .sound-deck .section-kicker { color: #b3d6d8; }
+#soloTitle { font-family: "Caveat", cursive; font-size: 43px; font-weight: 500; line-height: 1.05; letter-spacing: -.02em; margin-bottom: 14px; }
+.score-doodle { height: 55px; margin: 8px -10px -4px; background: url("assets/score-sketch.svg") center / contain no-repeat; filter: brightness(0) invert(1); opacity: .35; pointer-events: none; }
+.playground .deck-display { margin-top: 9px; border-radius: 3px; border-color: #5d858e; }
+.playground #soloAssignment { font: 23px/1.4 "Caveat", cursive; color: #a9d7e2; }
+.playground .solo-transport button { border-radius: 4px 7px 5px 3px; }
+.playground .controls-panel { background: #e3e7df; border-color: #aabcb9; border-radius: 3px 7px 4px 5px; }
+.playground .controls-panel::before { content: "play it your way"; display: block; font: 24px/1.1 "Caveat", cursive; color: #406675; margin: -3px 0 17px; transform: rotate(-1deg); transform-origin: left; }
+.playground .readout-panel { border-bottom: 1px solid #a7baba; }
+.playground .live-readout > div { border-left-color: #83a4ac; }
+.playground .how-to, .playground .analysis-panel { border-bottom-color: #a7baba; }
+@media (max-width: 1100px) { .instrument-sketch { flex-basis: 125px; } .instrument-sketch svg { height: 100px; } .instrument-sketch > span { font-size: 23px; } .session-heading { gap: 18px; } }
+@media (max-width: 767px) { .playground .session-heading { display: grid; grid-template-columns: minmax(0, 1fr) 100px; gap: 17px; align-items: center; } .session-heading > div:first-child { grid-column: 1; grid-row: 1; } .instrument-sketch { grid-column: 2; grid-row: 1; width: 100px; } .instrument-sketch svg { height: 85px; } .instrument-sketch > span { font-size: 21px; margin-top: -5px; } .session-heading #trackPicker { grid-column: 1 / -1; margin-top: 0; max-width: none; } .session-heading::after { width: 100%; } #trackHeading { font-size: 35px; } .playground .intro { font-size: 13px; } .playground .section-kicker { font-size: 22px; } .playground .studio-grid { gap: 24px; } }
+@media (max-width: 420px) { .playground .session-heading { grid-template-columns: minmax(0, 1fr) 78px; gap: 13px; } .instrument-sketch { width: 78px; } .instrument-sketch svg { height: 78px; } .instrument-sketch > span { font-size: 19px; } #trackHeading { font-size: 32px; } .playground .intro { font-size: 12px; } .playground .section-heading { flex-wrap: wrap; } #trackImageTitle { font-size: 23px; } }

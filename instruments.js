@@ -22,13 +22,14 @@
     if (id === 'piano') return global.createDJEarthPiano(options);
     if (id === 'bass') return global.createDJEarthBass(options);
     if (!profiles[id] && id !== 'drums') throw new RangeError('Unknown instrument.');
-    let context, master;
+    let context, master, visualizer;
     let volume = options.volume ?? 0.55;
     const voices = new Set();
     function setVolume(value) {
       if (!Number.isFinite(value)) throw new TypeError('Volume must be a number.');
       volume = Math.max(0, Math.min(1, value));
       if (master) master.gain.setValueAtTime(volume * 0.18, context.currentTime);
+      if (voices.size > 0) visualizer?.start();
     }
     async function ready() {
       if (!context) {
@@ -37,6 +38,7 @@
         context = new Context();
         master = context.createGain();
         master.connect(context.destination);
+        visualizer = global.DJEarthVisualizer?.connect(context, master);
         setVolume(volume);
       }
       if (context.state !== 'running') await context.resume();
@@ -46,7 +48,10 @@
       voice.sources.forEach(source => { try { source.stop(); } catch {} });
       voice.nodes.forEach(node => node.disconnect());
     }
-    function stopAll() { [...voices].forEach(dispose); }
+    function stopAll() {
+      [...voices].forEach(dispose);
+      visualizer?.stop();
+    }
     function play(hz) {
       if (!Number.isFinite(hz) || hz <= 0) throw new RangeError('Pitch must be positive.');
       if (!context || context.state !== 'running') throw new Error('Call ready() first.');
@@ -111,6 +116,7 @@
         source.start(now);
         source.stop(now + duration);
       });
+      visualizer?.start();
     }
     setVolume(volume);
     return Object.freeze({ ready, play, setVolume, stopAll, tailSeconds: 0.95 });

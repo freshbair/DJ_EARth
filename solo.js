@@ -9,6 +9,14 @@
   let timer;
   let live = false;
   let updateLive;
+  let currentVoice;
+  let currentIntensity = Number(slider.value);
+  function applyIntensity(value = currentIntensity) {
+    currentIntensity = Number(value);
+    const masterVolume = Number(document.querySelector('#volume').value) / 100;
+    // Keep the lowest parameter audible, with room to grow into a full-strength note.
+    currentVoice?.setVolume(masterVolume * (0.1 + 0.9 * currentIntensity / 100));
+  }
   const playButton = document.querySelector('#soloNote');
   const bpmForValue = value => Math.round(60 + Number(value) * 1.8);
   function updateReadout() {
@@ -19,8 +27,8 @@
     const demoReadout = document.querySelector('#activeBrightness');
     if (demoReadout && Number(select.value) > 1) demoReadout.textContent = `${slider.value}%`;
     document.querySelector('#soloValueHelp').textContent = drums
-      ? 'Higher wind speed makes the beat faster: 60-240 BPM. Move the slider while playing to change tempo.'
-      : 'Move the slider to change pitch only. Playback pace stays fixed; BPM applies only to drums. Press Stop to finish.';
+      ? 'Intensity changes beat speed and loudness: 60-240 BPM. Softer beats make shorter bars.'
+      : 'Intensity changes pitch and loudness. Softer notes make shorter bars; playback pace stays fixed.';
   }
   bank.assignments.forEach((assignment, index) => {
     select.add(new Option(`${assignment.parameter} → ${assignment.instrument}`, index));
@@ -116,7 +124,7 @@
     if (index > 1) trackImage.src = uploaded ? uploaded.url : `assets/tracks/${reference.file}`;
     const help = document.querySelector('#trackImageUploadHelp');
     if (help) help.textContent = index < 2
-      ? 'Choose a PNG or JPEG for this track. Images stay in your browser for this session. Scan the image below to hear its mapped values.'
+      ? 'Choose a PNG or JPEG for this track. Images stay in your browser for this session. Scan the image to hear its mapped values.'
       : 'Choose a PNG or JPEG for this track. Images stay in your browser for this session. Image analysis is coming later; sound uses demo values.';
   }
   imageUpload?.addEventListener('change', async () => {
@@ -145,7 +153,7 @@
         showTrackImage(index);
         if (index < 2) await global.djEarthApp.uploadImage(file);
         if (Number(select.value) === index) imageUploadStatus.textContent = index < 2
-          ? 'Image selected. See the scan status below.'
+          ? 'Image selected. See the scan status.'
           : 'Your image is ready for preview. Sound still uses demo values.';
       }
       if (previous) URL.revokeObjectURL(previous.url);
@@ -187,7 +195,7 @@
       document.querySelector('#playScan').disabled = demo;
       document.querySelector('#stopScan').disabled = true;
       document.querySelectorAll('input[name="pitchMode"]').forEach(input => { input.disabled = demo; if (demo) input.checked = input.value === 'fixed'; });
-      document.querySelector('#volumeHelp').textContent = 'Volume changes loudness only. Use the demo controls above to preview the selected instrument.';
+      document.querySelector('#volumeHelp').textContent = 'Volume changes loudness only. Use the sound controls to preview the selected instrument.';
       document.querySelector('#footerScaleExplanation').textContent = demo
         ? 'This track uses demo values. Uploaded images are previews until image analysis is added.'
         : 'Scan eight locations from left to right. Image values map to the selected instrument.';
@@ -232,6 +240,7 @@
     playButton.setAttribute('aria-pressed', 'false');
     document.body.classList.remove('is-playing');
     voices.forEach(voice => voice.stopAll());
+    currentVoice = undefined;
     status.textContent = 'Solo stopped. Ready to test another value or instrument.';
   }
   async function play(playbackMode) {
@@ -245,7 +254,8 @@
       voice = bank.createInstrument(assignment.id);
       voices.set(assignment.id, voice);
     }
-    voice.setVolume(Number(document.querySelector('#volume').value) / 100);
+    currentVoice = voice;
+    applyIntensity(slider.value);
     live = playbackMode === 'live';
     playButton.setAttribute('aria-pressed', String(live));
     try {
@@ -268,6 +278,7 @@
           if (run !== ticket) return;
           try {
             const value = Number(slider.value);
+            applyIntensity(value);
             if (assignment.id === 'drums') {
               // A stable kick/snare pattern; wind changes tempo, not drum type.
               voice.play(beat++ % 2 === 0 ? 65 : 110);
@@ -286,6 +297,7 @@
         }
         updateLive = () => {
           if (run !== ticket) return;
+          applyIntensity(slider.value);
           if (assignment.id === 'drums') {
             clearTimeout(timer);
             // Preserve progress through the beat when its duration changes.
@@ -316,6 +328,7 @@
       function step() {
         if (run !== ticket) return;
         const value = values[index++];
+        applyIntensity(value);
         const semitone = intervals[Math.round(value * 7 / 100)];
         const midi = (assignment.octave + 1) * 12 + semitone;
         voice.play(assignment.id === 'drums' ? (index % 2 === 1 ? 65 : 110) : 440 * 2 ** ((midi - 69) / 12));
@@ -339,9 +352,7 @@
   document.querySelector('#soloSingle').addEventListener('click', () => { void play('single'); });
   document.querySelector('#soloPhrase').addEventListener('click', () => { void play('phrase'); });
   document.querySelector('#soloStop').addEventListener('click', stop);
-  document.querySelector('#volume').addEventListener('input', event => {
-    voices.forEach(voice => voice.setVolume(Number(event.target.value) / 100));
-  });
+  document.querySelector('#volume').addEventListener('input', () => applyIntensity());
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
   global.addEventListener('pagehide', stop);
   global.djEarthSolo = Object.freeze({ stop });

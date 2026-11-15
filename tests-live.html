@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="style.css?v=logo-1">
+<link rel="stylesheet" href="style.css?v=earth-album-restore-1">
 <title>DJ_EARth live playback checks</title>
 <main class="app">
   <a class="site-brand" href="index.html" aria-label="DJ EARth home">
@@ -29,7 +29,7 @@
   window.DJEarthInstruments = {
     assignments: DJEarthInstruments.assignments,
     createInstrument(id) {
-      const voice = { notes: [], stops: 0, ready: async () => {}, setVolume() {}, play(hz) { this.notes.push(hz); }, stopAll() { this.stops++; } };
+      const voice = { notes: [], noteGains: [], volumes: [], currentVolume: 0, stops: 0, ready: async () => {}, setVolume(value) { this.currentVolume = value; this.volumes.push(value); }, play(hz) { this.notes.push(hz); this.noteGains.push(this.currentVolume); }, stopAll() { this.stops++; } };
       sounds.set(id, voice); return voice;
     }
   };
@@ -42,6 +42,8 @@
     function assert(condition, message) { if (!condition) throw new Error(message); }
     const click = id => document.querySelector('#' + id).click();
     const slider = document.querySelector('#soloValue');
+    const master = document.querySelector('#volume');
+    const setMaster = value => { master.value = value; master.dispatchEvent(new Event('input')); };
     const change = value => { slider.value = value; slider.dispatchEvent(new Event('input')); };
     const flush = async () => { await Promise.resolve(); await Promise.resolve(); };
     try {
@@ -52,10 +54,14 @@
         assert(voice.notes.length === 1, 'Live mode starts with one note');
         assert(pending.size === 1, 'Only one repeat timer exists');
         const lowNote = voice.notes[0];
+        const lowGain = voice.currentVolume;
+        assert(lowGain > 0, 'Minimum intensity still produces an audible note');
         const lowDelay = [...pending.values()][0].delay;
         const originalTimer = [...pending.keys()][0];
         change(100);
         assert(pending.size === 1, 'Slider keeps a single timer');
+        assert(voice.currentVolume > lowGain, 'Higher intensity raises instrument loudness');
+        const highGain = voice.currentVolume;
         if (index === 5) {
           assert(lowDelay === 1000, 'Minimum wind is 60 BPM');
           assert([...pending.values()][0].delay <= 250, 'Maximum wind is 240 BPM');
@@ -67,6 +73,19 @@
           assert([...pending.values()][0].delay === 500, 'Melodic instruments keep their fixed pace');
           assert(!document.querySelector('#soloValueLabel').textContent.includes('BPM'), 'Only drums display BPM');
         }
+        setMaster(0);
+        assert(voice.currentVolume === 0, 'Master volume zero exactly mutes the instrument');
+        change(0);
+        assert(voice.currentVolume === 0, 'Minimum intensity cannot bypass master mute');
+        change(100);
+        assert(voice.currentVolume === 0, 'Maximum intensity cannot bypass master mute');
+        setMaster(100);
+        assert(voice.currentVolume > highGain, 'Master volume still increases instrument loudness');
+        change(0);
+        assert(voice.currentVolume > 0 && voice.currentVolume < highGain, 'Even full master volume retains the lower intensity level');
+        setMaster(55);
+        change(100);
+        assert(pending.size === 1, 'Gain adjustments keep a single playback timer');
         const [id, task] = [...pending.entries()][0]; pending.delete(id); task.callback();
         assert(pending.size === 1, 'Playback repeats');
         click('soloStop');
@@ -75,6 +94,7 @@
         const beforeSingle = voice.notes.length;
         click('soloSingle'); await flush();
         assert(voice.notes.length === beforeSingle + 1, 'Play note triggers exactly one sound');
+        assert(voice.noteGains.at(-1) > lowGain, 'A single note uses the selected higher intensity gain');
         assert(document.querySelector('#soloNote').getAttribute('aria-pressed') === 'false', 'Single note is not live mode');
         change(50);
         assert(voice.notes.length === beforeSingle + 1, 'Slider is silent in single note mode');
@@ -85,7 +105,22 @@
         const afterSwitch = voice.notes.length;
         const [endId, end] = [...pending.entries()][0]; pending.delete(endId); end.callback();
         assert(pending.size === 0 && voice.notes.length === afterSwitch, 'Switching from live to single stops the loop');
-        results.push('PASS: ' + DJEarthInstruments.assignments[index].instrument + ' live and single note playback');
+        change(0);
+        click('soloSingle'); await flush();
+        const quietSingle = voice.noteGains.at(-1);
+        click('soloStop');
+        change(100);
+        click('soloSingle'); await flush();
+        assert(voice.noteGains.at(-1) > quietSingle && quietSingle > 0, 'Single-note intensity changes actual instrument gain');
+        click('soloStop');
+        click('soloPhrase'); await flush();
+        const firstPhraseGain = voice.noteGains.at(-1);
+        for (let step = 0; step < 7; step++) {
+          const [phraseId, phraseStep] = [...pending.entries()][0]; pending.delete(phraseId); phraseStep.callback();
+        }
+        assert(voice.noteGains.at(-1) > firstPhraseGain && firstPhraseGain > 0, 'A phrase grows louder with its low-to-high demo steps');
+        click('soloStop');
+        results.push('PASS: ' + DJEarthInstruments.assignments[index].instrument + ' live/single/phrase playback, intensity gain, and master mute');
       }
       click('soloNote'); click('soloStop'); await flush();
       assert(pending.size === 0, 'Stop during audio startup cancels playback');

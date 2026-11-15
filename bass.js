@@ -17,6 +17,7 @@
 
     let context;
     let master;
+    let visualizer;
     let resumePromise;
     let volume = 0.55;
     const voices = new Set();
@@ -33,6 +34,7 @@
         master.gain.setValueAtTime(master.gain.value, now);
         master.gain.linearRampToValueAtTime(volume * MAX_GAIN, now + 0.02);
       }
+      if (voices.size > 0) visualizer?.start();
     }
 
     async function ready() {
@@ -43,6 +45,7 @@
         master = context.createGain();
         master.gain.value = volume * MAX_GAIN;
         master.connect(context.destination);
+        visualizer = global.DJEarthVisualizer?.connect(context, master);
       }
       if (context.state === 'closed') throw new Error('The audio context has been closed.');
       if (context.state !== 'running') {
@@ -72,6 +75,7 @@
 
     function stopAll() {
       [...voices].forEach(stopVoice);
+      visualizer?.stop();
     }
 
     function play(hz) {
@@ -173,6 +177,7 @@
           osc.start(now);
           osc.stop(now + TAIL_SECONDS);
         });
+        visualizer?.start();
       } catch (error) {
         stopVoice(voice);
         throw error;

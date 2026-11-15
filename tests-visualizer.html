@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DJ_EARth &middot; Audio visualizer checks</title>
+  <link rel="stylesheet" href="style.css?v=earth-album-restore-1">
+  <script src="audio-visualizer.js?v=full-display-1" defer></script>
+</head>
+<body>
+  <main class="app">
+    <a class="site-brand" href="index.html" aria-label="DJ EARth home"><img src="assets/logo.png" alt="DJ EARth" width="1674" height="939"></a>
+    <p class="eyebrow">DJ_EARth / AUDIO VISUALIZER CHECKS</p>
+    <h1>Check the sound display.</h1>
+    <p>These checks use real Web Audio signals and watch the rendered bars. The test output is muted after the analyser tap, so this page stays silent.</p>
+    <p><a href="index.html">Back to DJ_EARth</a></p>
+    <button id="runChecks" type="button">Run visualizer checks</button>
+    <div class="deck-display" aria-hidden="true">
+      <span class="deck-disc"></span>
+      <div class="equalizer"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <span class="deck-display-label">REAL AUDIO SIGNAL / SILENT TEST OUTPUT</span>
+    </div>
+    <p id="testSummary" role="status">Ready. Run the checks to start.</p>
+    <pre id="results" style="white-space: pre-wrap"></pre>
+  </main>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+      const bars = [...document.querySelectorAll('.equalizer i')];
+      const levels = () => bars.map(bar => bar.getBoundingClientRect().height);
+      const peak = values => Math.max(...values);
+      const difference = (a, b) => a.reduce((sum, value, index) => sum + Math.abs(value - b[index]), 0);
+      const assert = (condition, message) => { if (!condition) throw new Error(message); };
+      let running = false;
+
+      async function runChecks() {
+        if (running) return;
+        running = true;
+        document.querySelector('#runChecks').disabled = true;
+        document.querySelector('#testSummary').textContent = 'Running real audio checks...';
+        const results = [];
+        let context;
+        const taps = [];
+        const sources = [];
+        try {
+          const visualizer = window.DJEarthVisualizer;
+          assert(visualizer && typeof visualizer.connect === 'function', 'The visualizer service is available.');
+          const optional = visualizer.connect({}, { connect() { throw new Error('A missing analyser must leave audio routing alone.'); } });
+          optional?.start();
+          optional?.stop();
+          results.push('PASS: Missing analyser support leaves audio usable.');
+
+          if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            results.push('SKIP: Signal animation checks respect reduced-motion preference.');
+          } else {
+            context = new AudioContext();
+            await context.resume();
+            // Silence the physical output after the node the visualizer measures.
+            const sink = context.createGain();
+            sink.gain.value = 0;
+            sink.connect(context.destination);
+            function source(frequency, volume) {
+              const oscillator = context.createOscillator();
+              oscillator.type = 'sine';
+              oscillator.frequency.value = frequency;
+              const master = context.createGain();
+              master.gain.value = volume;
+              oscillator.connect(master);
+              master.connect(sink);
+              const tap = visualizer.connect(context, master);
+              assert(tap && typeof tap.start === 'function' && typeof tap.stop === 'function', 'A real signal gets a visualizer tap.');
+              taps.push(tap);
+              sources.push(oscillator);
+              oscillator.start();
+              return { oscillator, master, tap };
+            }
+            const first = source(220, 0);
+            first.tap.start();
+            await wait(400);
+            const idle = levels();
+            first.master.gain.setValueAtTime(0.05, context.currentTime);
+            first.tap.start();
+            await wait(450);
+            const quiet = levels();
+            assert(peak(quiet) > peak(idle) + 1, 'A real low-frequency signal should raise bars above silence.');
+            results.push('PASS: Real audio moves the bars above the silence baseline.');
+            assert(quiet.every((height, index) => height > idle[index] + 1), 'Every bar should respond to a quiet low-frequency note, including bands away from its spectral peak.');
+            results.push('PASS: A low-frequency note energizes the full display.');
+            let evolving = false;
+            for (let frame = 0; frame < 6; frame++) {
+              await wait(65);
+              if (difference(quiet, levels()) > 1) { evolving = true; break; }
+            }
+            assert(evolving, 'The full display should evolve with successive real audio samples.');
+            results.push('PASS: Successive audio samples change the displayed waveform.');
+
+            first.master.gain.setValueAtTime(0.65, context.currentTime);
+            await wait(450);
+            const loud = levels();
+            assert(peak(loud) > peak(quiet) + 1, 'Raising actual output gain should increase displayed energy.');
+            results.push('PASS: Bar energy increases with actual output volume.');
+
+            first.oscillator.frequency.setValueAtTime(1760, context.currentTime);
+            await wait(450);
+            const high = levels();
+            assert(difference(loud, high) > 4, 'Changing frequency should change the displayed spectrum.');
+            results.push('PASS: Changing pitch changes the spectrum shape.');
+
+            first.master.gain.setValueAtTime(0, context.currentTime);
+            await wait(850);
+            const muted = levels();
+            assert(peak(muted) <= peak(idle) + 1, 'Muted audio should settle to the silence baseline.');
+            results.push('PASS: Zero output volume settles the display.');
+
+            first.tap.stop();
+            const second = source(880, 0.4);
+            second.tap.start();
+            await wait(450);
+            assert(peak(levels()) > peak(idle) + 1, 'A second output tap should animate after the first stops.');
+            second.master.gain.setValueAtTime(0, context.currentTime);
+            second.tap.stop();
+            await wait(350);
+            assert(peak(levels()) <= peak(idle) + 1, 'Stopped outputs should settle the bars.');
+            results.push('PASS: Switching audio outputs works, and stopping settles the bars.');
+          }
+          document.querySelector('#testSummary').textContent = 'All visualizer checks passed.';
+        } catch (error) {
+          results.push('FAIL: ' + error.message);
+          document.querySelector('#testSummary').textContent = 'A visualizer check failed.';
+        } finally {
+          taps.forEach(tap => tap.stop());
+          sources.forEach(source => { try { source.stop(); } catch {} });
+          if (context && context.state !== 'closed') await context.close();
+          document.querySelector('#results').textContent = results.join('\n');
+          document.querySelector('#runChecks').disabled = false;
+          running = false;
+        }
+        return results;
+      }
+      window.runVisualizerChecks = runChecks;
+      document.querySelector('#runChecks').addEventListener('click', () => { void runChecks(); });
+      if (new URLSearchParams(location.search).has('autorun')) void runChecks();
+    });
+  </script>
+</body>
+</html>
