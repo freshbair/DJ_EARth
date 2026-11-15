@@ -18,13 +18,24 @@
   // Congo alone is ambiguous; ask for the full name rather than guess.
   aliases.set('congo',null);
   function resolve(text) {
-    const cleaned=normalize(text).replace(/^(i am currently in|i am in|i m in|im in|i live in|my country is|i am from|in) /,'');
-    if(aliases.has(cleaned))return aliases.get(cleaned)||null;
-    const matches=new Set();
-    for(const [name,country] of aliases){
-      if(country && name.length>3 && (` ${cleaned} `).includes(` ${name} `))matches.add(country);
+    if (!text) return null;
+    let cleaned = normalize(text)
+      .replace(/^(hey|hi|hello|ok|okay)?\s*(dj|d j|deejay)?\s*/i, '')
+      .replace(/^(play|show|tell me about|what about|how about|what is the temperature in|temperature in|give me|check|listen to|i am currently in|i am in|i m in|im in|i live in|my country is|i am from|in|the)\s+/i, '')
+      .replace(/\s+(please|thanks|thank you)$/i, '')
+      .trim();
+    if (aliases.has(cleaned)) return aliases.get(cleaned) || null;
+    const words = cleaned.split(/\s+/);
+    for (const w of words) {
+      if (aliases.has(w) && aliases.get(w)) return aliases.get(w);
     }
-    return matches.size===1?[...matches][0]:null;
+    const matches = new Set();
+    for (const [name, country] of aliases) {
+      if (country && (name.length > 3 || ['usa', 'uk', 'uae'].includes(name)) && (` ${cleaned} `).includes(` ${name} `)) {
+        matches.add(country);
+      }
+    }
+    return matches.size === 1 ? [...matches][0] : null;
   }
   function project(lon,lat) {
     const band=Math.min(17,Math.floor(Math.abs(lat)/5)), f=Math.abs(lat)/5-band;
