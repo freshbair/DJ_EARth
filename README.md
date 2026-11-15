@@ -22,6 +22,10 @@ A local, buildless planetary sonification studio: turn Earth temperature variati
 - 8 scan spots from left to right along the center row.
 - Built-in grayscale test pattern ending on High Do (C5).
 
+## First supervised map-reading experiment
+
+Select **Air quality** and find **Listen to the air** below the studio controls. Compare the supplied historical NO2 maps, sample with keyboard sliders, or upload a map using the same legend and layout. The trained colour model drives a fixed flute pitch scale. This prototype does not support temperature uploads yet and does not claim validated weather accuracy. See [the experiment documentation](ml/README.md) for training, evaluation and limitations.
+
 ## Launch
 
 Open `index.html` directly in any modern browser (Chrome, Edge, Firefox, or Safari). From VS Code, reveal the file in Explorer and open it in your browser. Audio starts only after you press **Play scan** or preview a spot.

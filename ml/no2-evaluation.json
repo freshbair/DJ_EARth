@@ -1,0 +1,13 @@
+{
+  "task": "Legend colour reconstruction; not weather forecasting",
+  "algorithm": "5-nearest-neighbor regression, uniform weights, RGB Euclidean distance",
+  "training_samples": 156,
+  "held_out_legend_samples": 311,
+  "mae": 0.03693679026415414,
+  "max_absolute_error": 0.2911392405063291,
+  "constant_mean_baseline_mae": 2.460417599413896,
+  "units": "10^15 molecules/cm^2 (NO2 column)",
+  "source_sha256": "ee46a4f605e677a0be5b703ca508a14b50c9defff12d3d878ded566524df66bd",
+  "holdout_sha256": "f453cee8164e9aca77927d83e7d6e1145d87f28acb32c679e85140505bc769c6",
+  "limitations": "Correlated legend pixels are not independent weather observations. No labelled map pixels or ground measurements were evaluated. Terrain, text, clouds, black pixels and alternate palettes can invalidate readings."
+}

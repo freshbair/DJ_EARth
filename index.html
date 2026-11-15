@@ -15,13 +15,23 @@
   <script src="audio-visualizer.js?v=full-display-1" defer></script>
   <script src="piano.js?v=audio-reactive-restore-1" defer></script>
   <script src="bass.js?v=audio-reactive-restore-1" defer></script>
-  <script src="instruments.js?v=audio-reactive-restore-1" defer></script>
-  <script src="script.js?v=blue-studio-restore-1" defer></script>
-  <script src="solo.js?v=intensity-gain-restore-1" defer></script>
+  <script src="instruments.js?v=sampled-voices-1" defer></script>
+  <script src="assets/tracks/night-lights-data.js?v=team-reference-2" defer></script>
+  <script src="script.js?v=night-map-local-2" defer></script>
+  <script src="solo.js?v=start-track-one-5" defer></script>
   <script src="studio-ui.js?v=earth-album-1" defer></script>
   <script src="globe-scene.js?v=earth-album-1" defer></script>
   <script src="art-direction.js?v=earth-album-1" defer></script>
   <script src="music-notebook.js?v=1" defer></script>
+  <link rel="stylesheet" href="no2-lab.css?v=1">
+  <script src="assets/no2/model.js?v=1" defer></script>
+  <script src="no2-reader.js?v=1" defer></script>
+  <script src="no2-lab.js?v=1" defer></script>
+  <link rel="stylesheet" href="voice-assistant.css?v=compact-2">
+  <script src="assets/voice/countries.js?v=1" defer></script>
+  <script src="assets/voice/temperature-reference.js?v=1" defer></script>
+  <script src="country-temperature.js?v=1" defer></script>
+  <script src="voice-assistant.js?v=compact-2" defer></script>
 </head>
 <body class="studio-page album-page">
   <a class="skip-link" href="#playground">Skip to the sound controls</a>
@@ -35,6 +45,28 @@
       <a class="open-studio" href="#playground">Open the studio <span aria-hidden="true">&#8599;</span></a>
     </header>
     <main class="app" id="studio">
+      <button id="djLauncher" class="dj-launcher" type="button" aria-controls="voiceAssistant" aria-expanded="false"><span aria-hidden="true">&#9835;</span> Hey DJ <span id="djMicState">Mic off</span></button>
+      <section id="voiceAssistant" class="voice-assistant" role="dialog" aria-modal="false" aria-labelledby="djVoiceTitle" hidden>
+        <button id="djClose" class="dj-close" type="button" aria-label="Close assistant">&#215;</button>
+        <h2 id="djVoiceTitle" tabindex="-1">Hey DJ</h2>
+        <p id="djVoiceStatus" role="status" aria-live="polite" aria-atomic="true">Say Hey DJ to start. Temperature reference only.</p>
+        <div class="voice-actions">
+          <button id="djEnable" type="button" aria-pressed="false">Enable microphone</button>
+          <button id="djAsk" type="button">Ask me my country</button>
+          <button id="djStop" type="button">Stop assistant</button>
+        </div>
+        <form id="djCountryForm">
+          <label for="djCountry">Country</label><br>
+          <input id="djCountry" list="djCountries" autocomplete="country-name" required placeholder="For example, Lebanon">
+          <datalist id="djCountries"></datalist>
+          <button type="submit">Play temperature</button>
+        </form>
+        <p id="djMelody">No country melody playing.</p>
+        <details><summary>Voice and reference details</summary>
+          <p>Once microphone permission is saved, DJ tries to listen automatically while this page is visible. Your browser may require one click to enable sound or listening. Speech recognition may send audio to the browser provider.</p>
+          <p>Temperature only: six approximate locations on the country's main landmass use note groups learned from the reference image. Its relative 0-6 scale is not degrees Celsius or current weather. Geographic alignment is approximate, especially for small countries.</p>
+        </details>
+      </section>
       <section class="album-hero" aria-labelledby="albumTitle">
         <div class="hero-copy">
           <p class="eyebrow">THE EARTH SESSIONS</p>
@@ -121,9 +153,7 @@
       </div>
       <figure class="track-image-figure">
       <div class="image-stage" id="imageStage">
-        <canvas id="sourceCanvas" width="800" height="160" role="img" aria-label="Current image; eight scan locations are available as numbered buttons"></canvas>
-        <div class="scan-line" aria-hidden="true"></div>
-        <div id="spotOverlay" class="spot-overlay" role="group" aria-label="Preview a location on the image"></div>
+        <canvas id="sourceCanvas" width="800" height="160" role="img" aria-label="Current image. Click any location to hear its mapped value, or use the column and row controls below."></canvas>
       </div>
         <img id="trackImage" width="1024" height="576" alt="">
         <figcaption id="trackImageCaption" class="helper"></figcaption>
@@ -137,8 +167,12 @@
       <p id="trackImageUploadHelp" class="helper">Choose a PNG or JPEG for this track. Images stay in your browser for this session.</p>
       <p id="trackImageUploadStatus" role="status"></p>
       <p id="trackImageError" role="status" hidden>Image unavailable. Try another upload or restore the default image.</p>
-      <div id="scanRoute" class="scan-route" role="group" aria-label="Eight scan locations, left to right"></div>
-      <p id="routeHelper" class="helper">Each spot samples one location across the map. Click any numbered spot, note card, or anywhere on the map to preview its mapped value and pitch.</p>
+      <div class="map-point-controls">
+        <label>Horizontal position (left to right)<input id="mapColumn" type="range" min="0" max="100" step="0.1" value="50"></label>
+        <label>Vertical position (top to bottom)<input id="mapRow" type="range" min="0" max="100" step="0.1" value="50"></label>
+        <button id="hearMapPoint" type="button">Hear this point</button>
+      </div>
+      <p id="routeHelper" class="helper">Click anywhere on the map to hear the value at that pixel. The sliders choose a position without a mouse: horizontal moves left to right, vertical moves top to bottom. Then press Hear this point.</p>
       <p id="patternNote" class="helper">The test phrase ends on high Do, one octave above the first Do. This is a musical ending for the test pattern; uploaded images follow their mapped values.</p>
       <p id="scanPending" class="helper" hidden>Image scanning and analysis for this track will be added later. Use the demo controls to preview its instrument.</p>
       <div hidden>
@@ -157,8 +191,14 @@
       <div class="deck-display" aria-hidden="true"><span class="deck-disc"></span><div class="equalizer"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="deck-display-label">A LITTLE MOVEMENT. A LITTLE MUSIC.</span></div>
       <select id="soloInstrument" aria-label="Selected track instrument" hidden></select>
       <p id="soloAssignment" class="track-tag">Temperature &rarr; Harmonica</p>
+      <div class="sound-faders">
       <label class="fader-label">Intensity <output id="soloValueLabel" for="soloValue">50%</output><input id="soloValue" type="range" min="0" max="100" value="50" aria-describedby="soloValueHelp"></label>
+        <label class="volume-control fader-label"><span>Volume</span><output id="volumeValue" for="volume">55%</output>
+          <input id="volume" type="range" min="0" max="100" value="55" aria-describedby="volumeHelp">
+        </label>
+      </div>
       <p id="soloValueHelp" class="helper">Press Play live, then move the fader: softer notes make shorter bars.</p>
+      <p id="volumeHelp" class="helper">Volume changes loudness only; it does not change the selected map value or pitch.</p>
       <div class="source-actions solo-transport">
         <button id="soloNote" type="button" aria-pressed="false"><span aria-hidden="true">&#9654;</span> Play live</button>
         <button id="soloSingle" type="button">One note</button>
@@ -172,36 +212,61 @@
       <div class="live-readout">
         <div><span id="metricLabel" class="label">Temperature / 6</span><output id="activeBrightness">—</output></div>
         <div><span id="instrumentLabel" class="label">harmonica note</span><output id="activeNote">—</output></div>
-        <div><span class="label">Scan spot</span><output id="scanPosition">— / 8</output></div>
+        <div><span class="label">Selected location</span><output id="scanPosition">Choose a point</output></div>
       </div>
-      <p id="status" role="status">Ready. Play the scan or preview a location.</p>
+      <p id="status" role="status">Ready. Click a location on the map to hear it.</p>
     </section>        </div>
-    <section class="panel controls-panel" aria-label="Scan and sound controls">
+    <section class="panel controls-panel" hidden style="display:none">
       <div class="controls">
-        <div class="transport">
+        <div class="transport" style="display:none" aria-hidden="true">
           <button id="playScan" class="primary" type="button"><span aria-hidden="true">&#9654;</span> Play image</button>
           <button id="stopScan" class="secondary" type="button" disabled><span aria-hidden="true">&#9632;</span> Stop</button>
         </div>
-        <label class="volume-control"><span>Volume</span><output id="volumeValue" for="volume">55%</output>
-          <input id="volume" type="range" min="0" max="100" value="55" aria-describedby="volumeHelp">
-        </label>
-        <fieldset class="pitch-modes">
-          <legend>Pitch mode</legend>
-          <label><input type="radio" name="pitchMode" value="fixed" checked>Fixed scale</label>
-          <label><input type="radio" name="pitchMode" value="learned">Learn from image</label>
-        </fieldset>
-        <div id="pitchPicker" class="studio-picker" data-picker="pitch"><span class="picker-label">PITCH MODE</span></div>
+
         <fieldset class="pitch-modes" id="instrumentFieldset" hidden>
           <legend>Bass Register</legend>
           <label><input type="radio" name="bassRegister" value="deep" checked>Deep Bass (C2–C3 · 65–131 Hz)</label>
           <label><input type="radio" name="bassRegister" value="tenor">Tenor Bass (C3–C4 · 131–262 Hz)</label>
         </fieldset>
       </div>
-      <p id="volumeHelp" class="helper">Volume changes loudness only. Coldest temperatures still play Do; off-map background pixels are rests. One spot plays every 0.5 seconds.</p>
+
     </section>
 
 
-      <details id="howItWorks" class="how-to panel"><summary>Your first Earth session</summary><div class="how-to-steps"><p><b>01 / Pick a track</b>Each part of the planet has its own instrument.</p><p><b>02 / Make it yours</b>Add an image or explore the built-in source.</p><p><b>03 / Press play</b>Use the intensity fader for a demo, or Play image on tracks 1 and 2.</p></div></details>
+    <section id="no2Lab" class="no2-lab" aria-labelledby="no2Title" hidden>
+      <p class="section-kicker">Field notes / First machine-learning experiment</p>
+      <h2 id="no2Title">Listen to the air.</h2>
+      <p>Read a NASA NO&#8322; map through the flute. A model trained on the older map's colour legend estimates the value at your chosen point. Higher pitch means more nitrogen dioxide in the atmospheric column. Volume stays independent.</p>
+      <p><strong>Historical map-reading prototype.</strong> This is not today's weather, an AQI reading or a forecast. Estimates come from image colours, not the underlying satellite measurements.</p>
+      <fieldset><legend>Choose a map</legend>
+        <label><input type="radio" name="no2Source" value="2015-2019">March 2015&ndash;2019 average</label>
+        <label><input type="radio" name="no2Source" value="2020" checked>March 2020 (unseen during training)</label>
+      </fieldset>
+      <label for="no2Upload">Try another map with this same NO&#8322; legend and layout</label>
+      <input id="no2Upload" type="file" accept="image/png,image/jpeg" aria-describedby="no2UploadHelp">
+      <p id="no2UploadHelp">PNG or JPEG, up to 20 MB. Use the full northeast-US map template shown below, including its 0&ndash;10 &times; 10&#185;&#8309; molecules/cm&#178; legend. Temperature maps and different palettes are not supported yet. Files stay in your browser.</p>
+      <canvas id="no2Canvas" width="1200" height="675" role="img" aria-label="Selected historical NO&#8322; map. Use the column and row controls below to sample without a mouse."></canvas>
+      <div class="no2-controls">
+        <label>Column, left to right <output id="no2XValue" for="no2X">45%</output><input data-no2-ready disabled id="no2X" type="range" min="0" max="100" value="45" aria-label="Map column, percent from left"></label>
+        <label>Row, top to bottom <output id="no2YValue" for="no2Y">45%</output><input data-no2-ready disabled id="no2Y" type="range" min="0" max="100" value="45" aria-label="Map row, percent from top"></label>
+      </div>
+      <p>Use arrow keys on either slider, then choose Hear this point. You can also click the map. The same value always has the same pitch across maps. Unreadable locations produce no note.</p>
+      <p id="no2Reading" class="no2-reading" role="status" aria-live="polite" aria-atomic="true">Loading map...</p>
+      <div class="no2-actions">
+        <button id="no2Play" data-no2-ready disabled type="button">Hear this point</button>
+        <button id="no2Reference" data-no2-ready disabled type="button">Learn the sound scale</button>
+        <button id="no2Stop" type="button">Stop NO&#8322; sound</button>
+      </div>
+      <p id="no2Status" role="status" aria-atomic="true"></p>
+      <details><summary>What this model can tell us</summary>
+        <p id="no2Evaluation"></p>
+        <p>The supervised model uses five nearest labelled colours to estimate a continuous value. It stays fixed when you change maps. The palette compatibility check does not verify dates, geography or units; confirm those yourself. Terrain shading, text and boundaries distort colours. Dark or neutral pixels are rejected, including some high-value areas. A rejected point means unknown, never zero.</p>
+        <p>Accurate temperature readings will need a temperature-specific calibration or, preferably, numerical data with coordinates, dates and units. Independent measurements are needed to evaluate scientific accuracy. Blind and low-vision listeners should help test whether the sound scale is understandable.</p>
+        <p>Source: <a href="https://airquality.gsfc.nasa.gov/slider/pandemic-and-after-northeast-us-2015-2019-versus-2020">NASA Aura OMI, northeast US, March 2015&ndash;2019 and March 2020</a>.</p>
+      </details>
+    </section>
+
+      <details id="howItWorks" class="how-to panel"><summary>Your first Earth session</summary><div class="how-to-steps"><p><b>01 / Pick a track</b>Each part of the planet has its own instrument.</p><p><b>02 / Make it yours</b>Add an image or explore the built-in source.</p><p><b>03 / Press play</b>Click a map point on tracks 1 and 2, or explore the NO&#8322; experiment on Air quality. Use the intensity fader for an instrument demo.</p></div></details>
     <details class="panel analysis-panel" id="learningPanel">
       <summary id="learningTitle">Behind the sound</summary>
       <p id="learningSummary"></p>
@@ -220,9 +285,10 @@
         </div>
     <div class="footer">
       <p id="footerScaleExplanation">Temperature track: Navy (0) → Blue (1) → Cyan (2) → Green (3) → Yellow (4) → Red (5) → Maroon (6) maps to Do, Ré, Mi, Fa, Sol, La, Si. The higher the temperature, the higher the pitch.</p>
-      <p>Sonification uses local Web Audio API synthesis without external dependencies. Uploaded images remain private in your browser.</p>
+      <p>Harmonica, electric guitar, harp and violin use local FluidR3 instrument samples. Other voices use Web Audio synthesis. Uploaded images remain private in your browser.</p>
       <a href="tests.html">Audio checks</a>
       <a href="tests-live.html">Playback checks</a>
+      <a href="assets/instruments/LICENSE.md">Instrument sample credits</a>
     </div>
         <div class="footer-bottom"><a href="#studio">DJ EARth</a><span>Made for curious ears.</span><a href="#studio">Back to the top &#8593;</a></div>
       </footer>

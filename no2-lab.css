@@ -1,0 +1,18 @@
+.no2-lab { margin: 30px 0; padding: clamp(20px, 4vw, 42px); border: 1px solid #7397a8; background: #f4f1e8; color: #123344; border-radius: 3px 18px 3px 3px; }
+.no2-lab[hidden] { display: none; }
+.no2-lab h2 { font: 38px 'Playfair Display', Georgia, serif; margin: 8px 0 18px; }
+.no2-lab p { max-width: 80ch; line-height: 1.7; }
+.no2-lab fieldset { border: 0; padding: 0; margin: 20px 0; display: flex; flex-wrap: wrap; gap: 16px; }
+.no2-lab legend { font-weight: bold; margin-bottom: 12px; }
+.no2-lab label { display: block; }
+.no2-lab input[type=radio] { margin-right: 8px; }
+.no2-lab input[type=range] { width: 100%; }
+.no2-lab canvas { display: block; width: 100%; height: auto; border: 1px solid #7397a8; margin: 20px 0; }
+.no2-controls, .no2-actions { display: flex; flex-wrap: wrap; gap: 16px; margin: 18px 0; }
+.no2-controls label { flex: 1 1 220px; }
+.no2-lab button { min-height: 44px; }
+.no2-lab :focus-visible { outline: 3px solid #146a9c; outline-offset: 4px; }
+.no2-lab input[type=file] { max-width: 100%; }
+.no2-reading { padding: 16px; background: #dce9eb; border-left: 3px solid #146a9c; min-height: 70px; }
+.no2-lab details { margin-top: 20px; }
+.no2-lab summary { cursor: pointer; padding: 12px 0; }

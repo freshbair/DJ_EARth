@@ -13,8 +13,6 @@
   const $ = selector => document.querySelector(selector);
   const canvas = $('#sourceCanvas');
   const context = canvas.getContext('2d');
-  const overlay = $('#spotOverlay');
-  const route = $('#scanRoute');
   const playButton = $('#playScan');
   const stopButton = $('#stopScan');
   const upload = $('#imageUpload');
@@ -50,7 +48,7 @@
   let imageName = 'Earth thermal map';
   let spots = [];
   let centers = [];
-  let mode = 'fixed'; // 'fixed' | 'learned'
+  let mode = 'learned'; // Images automatically learn their note groups.
   let isTestPattern = false;
   let isEarthPreset = true;
   let run = 0;
@@ -74,13 +72,6 @@
 
   function highlight(index) {
     activeIndex = index;
-    [overlay, route].forEach(parent => {
-      Array.from(parent.children).forEach((button, i) => {
-        button.classList.toggle('active', i === index);
-        if (i === index) button.setAttribute('aria-current', 'step');
-        else button.removeAttribute('aria-current');
-      });
-    });
   }
 
   function showSpot(index) {
@@ -104,7 +95,7 @@
     return note;
   }
 
-  function stopPlayback(message = 'Stopped. Press Play scan to restart at spot 1.') {
+  function stopPlayback(message = 'Stopped. Click a map point to listen.') {
     run++;
     clearTimeout(timer);
     piano.stopAll();
@@ -173,24 +164,26 @@
   }
 
   async function previewCoordinates(x, y) {
-    if (!image) return;
+    if (!image || loading) return;
     global.djEarthSolo?.stop();
     stopPlayback();
+    const ticket = run;
     const voice = activeVoice();
-    const clampedX = Math.max(0, Math.min(image.width - 1, Math.round(x)));
-    const clampedY = Math.max(0, Math.min(image.height - 1, Math.round(y)));
+    const clampedX = Math.max(0, Math.min(image.width - 1, Math.floor(x)));
+    const clampedY = Math.max(0, Math.min(image.height - 1, Math.floor(y)));
     const offset = (clampedY * image.width + clampedX) * 4;
     const r = image.data[offset];
     const g = image.data[offset + 1];
     const b = image.data[offset + 2];
     const a = image.data[offset + 3];
+    const patternIndex = Math.floor(clampedX * 8 / image.width);
 
     let note;
     if (currentTrack === 'temperature') {
       const rest = tempTrack.isRestPixel(r, g, b, a);
       const temp = rest ? null : tempTrack.temperatureFromRGB(r, g, b);
       const inst = 'piano';
-      note = rest ? null : tempTrack.pitchForTemperature(temp, mode, centers, inst);
+      note = tempTrack.pitchForSpot({ rest, temperature: temp, index: patternIndex }, mode, centers, isTestPattern, inst);
       $('#activeBrightness').textContent = rest ? '—' : `${temp.toFixed(1)} · ${tempTrack.temperatureLabel(temp)}`;
       $('#activeNote').textContent = note ? `${note.name} · ${note.pitch} · ${note.hz.toFixed(1)} Hz` : 'Rest';
       $('#scanPosition').textContent = `Map (${clampedX}, ${clampedY})`;
@@ -198,7 +191,7 @@
     } else {
       const rest = a === 0;
       const br = rest ? null : light.brightnessFromRGB(r, g, b);
-      note = rest ? null : light.pitchForBrightness(br, mode, centers);
+      note = light.pitchForSpot({ rest, brightness: br, index: patternIndex }, mode, centers, isTestPattern);
       $('#activeBrightness').textContent = rest ? '—' : String(br);
       $('#activeNote').textContent = note ? `${note.name} · ${note.pitch} · ${note.hz.toFixed(1)} Hz` : 'Rest';
       $('#scanPosition').textContent = `Image (${clampedX}, ${clampedY})`;
@@ -208,62 +201,10 @@
     try {
       if (note) {
         await voice.ready();
+        if (ticket !== run) return;
         voice.play(note.hz);
       }
     } catch { /* Silent if audio not ready */ }
-  }
-
-  function renderRoute() {
-    overlay.replaceChildren();
-    route.replaceChildren();
-    spots.forEach((spot, index) => {
-      const note = noteAt(spot);
-      let metricStr = '';
-      let colorDotHtml = '';
-
-      if (currentTrack === 'temperature') {
-        const tempText = spot.rest ? 'Background rest' : `Temp ${spot.temperature.toFixed(1)} / 6 · ${tempTrack.temperatureLabel(spot.temperature)}`;
-        metricStr = spot.label ? `${spot.label} · ${tempText}` : tempText;
-        if (!spot.rest) {
-          const color = tempTrack.colorForTemperature(spot.temperature);
-          colorDotHtml = `<span class="spot-color-dot" style="background:${color}" aria-hidden="true"></span>`;
-        }
-      } else {
-        metricStr = spot.rest ? 'Transparent' : `${spot.brightness} / 255`;
-      }
-
-      const isHighDo = note && note.name === 'Do' && (
-        note.pitch === 'C5' || note.pitch === 'C4' || note.pitch === 'C3'
-      ) && spot.index === 7;
-      const noteLabel = note ? (isHighDo ? 'High Do' : note.name) : 'Rest';
-      const label = `Preview spot ${index + 1}: ${metricStr}, ${noteLabel}${note ? `, ${note.pitch}` : ''}`;
-
-      const marker = document.createElement('button');
-      marker.type = 'button';
-      marker.className = 'spot';
-      marker.style.left = `${(spot.x + 0.5) / image.width * 100}%`;
-      marker.style.top = `${(spot.y + 0.5) / image.height * 100}%`;
-      marker.textContent = String(index + 1);
-      marker.setAttribute('aria-label', label);
-      marker.addEventListener('click', e => {
-        e.stopPropagation();
-        void previewSpot(index);
-      });
-      overlay.append(marker);
-
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'route-step';
-      button.setAttribute('aria-label', label);
-      button.innerHTML = `
-        <span class="step-number">SPOT ${index + 1}</span>
-        <strong class="note-name">${colorDotHtml}${noteLabel}</strong>
-        ${note ? `<small class="brightness-value">${note.pitch} · ${note.hz.toFixed(1)} Hz</small>` : ''}
-        <small class="brightness-value">${metricStr}</small>
-      `;
-      button.addEventListener('click', () => { void previewSpot(index); });
-      route.append(button);
-    });
   }
 
   function renderLearning() {
@@ -345,15 +286,14 @@
     context.putImageData(display, 0, 0);
 
     $('#sourceTitle').textContent = name;
-    $('#sourceMeta').textContent = `${image.width} × ${image.height} pixels · 8 spots · 0.5s per spot`;
-    canvas.setAttribute('aria-label', `${name}. Eight sampling spots from left to right.`);
+    $('#sourceMeta').textContent = `${image.width} × ${image.height} pixels · click to listen`;
+    canvas.setAttribute('aria-label', `${name}. Click any location to hear its mapped value, or use the column and row controls.`);
 
-    renderRoute();
     renderLearning();
 
     $('#activeBrightness').textContent = '—';
     $('#activeNote').textContent = '—';
-    $('#scanPosition').textContent = '— / 8';
+    $('#scanPosition').textContent = 'Choose a point';
 
     const result = $('#testResult');
     result.hidden = !isTestPattern;
@@ -369,7 +309,7 @@
       result.textContent = `${passed ? 'Test phrase check passed' : 'Test phrase check failed'}: ${actual}`;
     }
 
-    status.textContent = `${name} ready. ${mode === 'fixed' ? 'Fixed scale' : 'Learn from image'} mode. Press Play scan.`;
+    status.textContent = `${name} ready. ${mode === 'fixed' ? 'Fixed scale' : 'Learn from image'} mode. Click any map point to listen.`;
   }
 
   function setTrack(track) {
@@ -385,7 +325,6 @@
     image = undefined;
     spots = [];
     centers = [];
-    renderRoute();
     renderLearning();
 
     if (currentTrack === 'temperature') {
@@ -423,7 +362,7 @@
       instrumentFieldset.hidden = true;
       $('#footerScaleExplanation').textContent = 'Fixed scale: floor(brightness × 7 / 256) → Do, Ré, Mi, Fa, Sol, La, Si (C4–B4). Brightness = round(0.2126R + 0.7152G + 0.0722B).';
 
-      applyImage(light.createTestPattern(), 'Night lights test pattern', true);
+      void loadNightLightsMap();
     }
   }
 
@@ -432,11 +371,10 @@
     stopPlayback();
     mode = value;
     pitchModes.forEach(input => { input.checked = input.value === mode; });
-    renderRoute();
     $('#activeBrightness').textContent = '—';
     $('#activeNote').textContent = '—';
-    $('#scanPosition').textContent = '— / 8';
-    status.textContent = `${mode === 'fixed' ? 'Fixed scale' : 'Learn from image'} mode selected. Press Play scan.`;
+    $('#scanPosition').textContent = 'Choose a point';
+    status.textContent = `${mode === 'fixed' ? 'Fixed scale' : 'Learn from image'} mode selected. Click any map point to listen.`;
   }
 
   function setBassRegister(reg) {
@@ -444,7 +382,6 @@
     stopPlayback();
     bassRegister = reg;
     registerModes.forEach(input => { input.checked = input.value === reg; });
-    renderRoute();
     renderLearning();
     status.textContent = `Bass register set to ${reg === 'deep' ? 'Deep Bass (C2–C3 · 65–131 Hz)' : 'Tenor Bass (C3–C4 · 131–262 Hz)'}.`;
   }
@@ -458,6 +395,37 @@
       applyImage(tempTrack.createTestPattern(), 'Temperature test pattern', true);
     } else {
       applyImage(light.createTestPattern(), 'Night lights test pattern', true);
+    }
+  }
+
+  async function loadNightLightsMap() {
+    const request = ++imageRequest;
+    stopPlayback('Loading night-lights map...');
+    loading = true;
+    playButton.disabled = true;
+    try {
+      const decoded = new Image();
+      // Data URLs remain readable by canvas when index.html is opened directly.
+      decoded.src = global.DJEarthNightLightsImage || 'assets/tracks/reference-night-lights.webp';
+      await decoded.decode();
+      if (request !== imageRequest) return;
+      const staging = document.createElement('canvas');
+      staging.width = decoded.naturalWidth;
+      staging.height = decoded.naturalHeight;
+      const ctx = staging.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(decoded, 0, 0);
+      applyImage(ctx.getImageData(0, 0, staging.width, staging.height), 'Night lights reference map', false, false);
+    } catch {
+      if (request === imageRequest) {
+        image = undefined;
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        status.textContent = 'Night-lights map could not be read. Open the site through a local web server or upload a night-lights image.';
+      }
+    } finally {
+      if (request === imageRequest) {
+        loading = false;
+        playButton.disabled = !image;
+      }
     }
   }
 
@@ -556,6 +524,12 @@
 
   upload.addEventListener('change', () => { void uploadImage(upload.files[0]); });
 
+  $('#hearMapPoint').addEventListener('click', () => {
+    if (!image) return;
+    void previewCoordinates(Number($('#mapColumn').value) / 100 * (image.width - 1),
+      Number($('#mapRow').value) / 100 * (image.height - 1));
+  });
+
   // Interactive click on canvas to inspect/hear any location
   canvas.addEventListener('click', event => {
     const rect = canvas.getBoundingClientRect();
@@ -563,6 +537,8 @@
     const scaleY = canvas.height / rect.height;
     const x = (event.clientX - rect.left) * scaleX;
     const y = (event.clientY - rect.top) * scaleY;
+    $('#mapColumn').value = Math.max(0, Math.min(100, (event.clientX - rect.left) / rect.width * 100));
+    $('#mapRow').value = Math.max(0, Math.min(100, (event.clientY - rect.top) / rect.height * 100));
     void previewCoordinates(x, y);
   });
 
@@ -574,7 +550,7 @@
   // Exposed API for automated integration checks and tests
   global.djEarthApp = Object.freeze({
     playScan, previewSpot, previewCoordinates, stop: stopPlayback,
-    setMode, setTrack, setBassRegister, uploadImage, useTestPattern, loadEarthPresetMap,
+    setMode, setTrack, setBassRegister, uploadImage, useTestPattern, loadEarthPresetMap, loadNightLightsMap,
     cancelPendingImage() {
       imageRequest++;
       loading = false;

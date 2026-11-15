@@ -122,6 +122,29 @@
         click('soloStop');
         results.push('PASS: ' + DJEarthInstruments.assignments[index].instrument + ' live/single/phrase playback, intensity gain, and master mute');
       }
+      for (const index of [0, 1]) {
+        document.querySelector(`[data-track-index="${index}"]`).click();
+        click('soloNote'); await flush();
+        const voice = sounds.get(DJEarthInstruments.assignments[index].id);
+        const repeatId = [...pending.keys()][0];
+        assert(djEarthSolo.applyMapPoint(63.2, 349.228), 'Map selection keeps live enabled');
+        assert(slider.value === '63', 'Map value updates intensity');
+        assert(voice.notes.at(-1) === 349.228, 'Live uses exact map pitch, not rounded slider pitch');
+        assert([...pending.keys()][0] === repeatId && pending.size === 1, 'Map click preserves repeat timer');
+        const tick = pending.get(repeatId); pending.delete(repeatId); tick.callback();
+        assert(voice.notes.at(-1) === 349.228, 'Next beat retains map pitch');
+        djEarthSolo.applyMapPoint(null, null);
+        const count = voice.notes.length;
+        const [restId, restTick] = [...pending.entries()][0]; pending.delete(restId); restTick.callback();
+        assert(voice.notes.length === count && pending.size === 1, 'Map rest is silent but stays live');
+        djEarthSolo.applyMapPoint(100, 1046.5);
+        assert(voice.notes.at(-1) === 1046.5, 'Valid point resumes live notes');
+        change(0);
+        assert(voice.notes.at(-1) < 300, 'Manual fader resumes demo pitch mapping');
+        click('soloStop');
+        assert(pending.size === 0, 'Stop cancels mapped live playback');
+      }
+      results.push('PASS: map-driven live pitch, intensity, rest, fader and stop on both tracks');
       click('soloNote'); click('soloStop'); await flush();
       assert(pending.size === 0, 'Stop during audio startup cancels playback');
       click('soloPhrase'); await flush();

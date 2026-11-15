@@ -11,6 +11,8 @@
   let updateLive;
   let currentVoice;
   let currentIntensity = Number(slider.value);
+  // undefined uses the demo scale; null is a map rest; a number is an exact mapped pitch.
+  let mapPitch;
   function applyIntensity(value = currentIntensity) {
     currentIntensity = Number(value);
     const masterVolume = Number(document.querySelector('#volume').value) / 100;
@@ -46,8 +48,9 @@
   ];
   const trackImages = {
     0: {
-      title: 'Night lights image', alt: 'Night lights image for brightness scanning.',
-      caption: 'Image brightness maps to piano notes. The default is a generated eight-step test pattern.'
+      title: 'Night lights map', alt: 'World night-lights reference showing illuminated cities on dark blue land and oceans.',
+      supplied: true,
+      caption: 'Your night-lights reference map. Click a location to hear its image brightness, with note groups learned from this image. Values describe visual brightness, not calibrated light emissions.'
     },
     1: {
       path: 'earth-temperature.jpg', title: 'Earth temperature image',
@@ -55,10 +58,9 @@
       caption: 'Map colors are mapped to temperature groups and harmonica notes.'
     },
     2: {
-      file: 'air-quality.png', title: 'Air quality model',
-      source: 'https://svs.gsfc.nasa.gov/5533/',
-      alt: 'NASA visualization of modeled air pollutants around the Earth.',
-      caption: 'GEOS-CF air pollutant transport, July-August 2024. This is a model visualization, not a direct AQI reading.'
+      file: 'reference-air-quality.png', title: 'Air quality reference map', supplied: true,
+      alt: 'World map of urban air pollution deaths per million population, with a categorical legend and grey areas for no data.',
+      caption: 'Your reference shows urban air pollution deaths per million population. It is not a current AQI or NO2 concentration map; the NO2 experiment below uses its own calibrated maps.'
     },
     3: {
       file: 'storms.jpg', title: 'Storms and lightning',
@@ -67,28 +69,24 @@
       caption: 'ISS Lightning Imaging Sensor observations, 2017-2023. Lightning illustrates storm activity; it does not directly measure storm intensity.'
     },
     4: {
-      file: 'ocean-currents.jpg', title: 'Ocean surface currents',
-      source: 'https://svs.gsfc.nasa.gov/3912/',
-      alt: 'Global ocean current paths colored by sea surface temperature.',
-      caption: 'ECCO2 modeled surface currents, 2007-2008. Colors represent sea surface temperature, not current speed.'
+      file: 'reference-ocean-currents.jpg', title: 'Ocean currents reference map', supplied: true,
+      alt: 'Global ocean reference with coloured flow patterns and dark land areas.',
+      caption: 'Your ocean currents reference. No numerical colour legend is supplied, so colours are not interpreted as measured current speeds.'
     },
     5: {
-      file: 'wind.jpg', title: 'Atmospheric transport',
-      source: 'https://svs.gsfc.nasa.gov/4960/',
-      alt: 'NASA atmospheric river visualization showing clouds and moisture transport.',
-      caption: 'Atmospheric river reference from NASA MERRA-2. This illustrates atmospheric transport rather than a quantitative wind speed map.'
+      file: 'reference-wind.jpg', title: 'Wind speed reference map', supplied: true,
+      alt: 'Global Wind Atlas screenshot with the mean wind speed layer and a metres-per-second legend.',
+      caption: 'Your Global Wind Atlas reference with mean wind speed selected. This screenshot is a reference, not a live wind measurement.'
     },
     6: {
-      file: 'hurricane.jpg', title: 'Hurricane tracks',
-      source: 'https://svs.gsfc.nasa.gov/4947/',
-      alt: '2021 hurricane tracks over clouds, precipitation, and sea surface temperatures.',
-      caption: 'May-September 2021 hurricane season. This composite combines storm tracks, clouds, precipitation, and ocean temperatures.'
+      file: 'reference-hurricane.gif', title: 'Hurricane reference map', supplied: true,
+      alt: 'World diagram showing tropical storm formation regions and typical hurricane, typhoon and cyclone paths.',
+      caption: 'Your reference shows where tropical storms form and their typical paths. It does not show current storms or measured storm intensity.'
     },
     7: {
-      file: 'altitude.jpg', title: 'Terrain elevation',
-      source: 'https://svs.gsfc.nasa.gov/11734',
-      alt: 'ASTER color-coded terrain elevation visualization.',
-      caption: 'NASA/JPL/METI/ASTER Team elevation visualization. Purple indicates low terrain; orange, red, and white indicate higher terrain.'
+      file: 'reference-altitude.jpg?v=3', title: 'Altitude reference map', supplied: true,
+      alt: 'Updated world elevation reference supplied by your team.',
+      caption: 'Your latest world elevation reference. This image has no visible numerical legend; elevation-to-sound calibration has not been added yet.'
     }
   };
   const imagePanel = document.querySelector('#trackImagePanel');
@@ -110,6 +108,9 @@
     source.hidden = Boolean(uploaded) || !reference.source;
     const credit = document.querySelector('#trackImageCredit');
     if (credit) credit.hidden = Boolean(uploaded) || index < 2;
+    if (credit) credit.textContent = reference.supplied
+      ? 'Reference image supplied by your team. Original labels and watermarks are preserved.'
+      : 'Image credit: NASA/Goddard Space Flight Center. Reference image only; use the sound controls to test this instrument.';
     if (imageUpload) imageUpload.value = '';
     if (imageUploadStatus) imageUploadStatus.textContent = '';
     const reset = document.querySelector('#resetTrackImage');
@@ -124,7 +125,7 @@
     if (index > 1) trackImage.src = uploaded ? uploaded.url : `assets/tracks/${reference.file}`;
     const help = document.querySelector('#trackImageUploadHelp');
     if (help) help.textContent = index < 2
-      ? 'Choose a PNG or JPEG for this track. Images stay in your browser for this session. Scan the image to hear its mapped values.'
+      ? 'Choose a PNG or JPEG for this track. Images stay in your browser for this session. Click the map to hear its mapped values.'
       : 'Choose a PNG or JPEG for this track. Images stay in your browser for this session. Image analysis is coming later; sound uses demo values.';
   }
   imageUpload?.addEventListener('change', async () => {
@@ -173,11 +174,12 @@
     showTrackImage(index);
     if (previous) URL.revokeObjectURL(previous.url);
     if (index === 1) void global.djEarthApp.loadEarthPresetMap();
-    else if (index === 0) global.djEarthApp.useTestPattern();
+    else if (index === 0) void global.djEarthApp.loadNightLightsMap();
     imageUploadStatus.textContent = 'Default image restored.';
   });
   const trackButtons = [...document.querySelectorAll('[data-track-index]')];
   trackButtons.forEach(button => button.addEventListener('click', () => {
+    mapPitch = undefined;
     stop();
     const index = Number(button.dataset.trackIndex);
     const assignment = bank.assignments[index];
@@ -194,11 +196,10 @@
       document.querySelector('#scanPending').hidden = !demo;
       document.querySelector('#playScan').disabled = demo;
       document.querySelector('#stopScan').disabled = true;
-      document.querySelectorAll('input[name="pitchMode"]').forEach(input => { input.disabled = demo; if (demo) input.checked = input.value === 'fixed'; });
-      document.querySelector('#volumeHelp').textContent = 'Volume changes loudness only. Use the sound controls to preview the selected instrument.';
+      document.querySelector('#volumeHelp').textContent = 'Volume changes loudness only; it does not change the selected map value or pitch.';
       document.querySelector('#footerScaleExplanation').textContent = demo
         ? 'This track uses demo values. Uploaded images are previews until image analysis is added.'
-        : 'Scan eight locations from left to right. Image values map to the selected instrument.';
+        : 'Click anywhere on the map. The selected pixel maps to a note using the current colour scale.';
       if (demo) {
         document.querySelector('#metricLabel').textContent = `${assignment.parameter} / demo`;
         document.querySelector('#instrumentLabel').textContent = `${assignment.instrument} preview`;
@@ -209,11 +210,11 @@
         document.querySelector('#learningTitle').textContent = 'Image analysis';
         document.querySelector('#learningSummary').textContent = 'Image analysis is coming later for this track. Your uploaded image is available for preview.';
       } else {
-        global.djEarthApp.setMode('fixed');
+        global.djEarthApp.setMode('learned');
         const uploaded = uploadedImages.get(index);
         if (uploaded) void global.djEarthApp.uploadImage(uploaded.file);
         else if (index === 1) void global.djEarthApp.loadEarthPresetMap();
-        else global.djEarthApp.useTestPattern();
+        else void global.djEarthApp.loadNightLightsMap();
       }
     }
     trackButtons.forEach(tab => {
@@ -258,6 +259,7 @@
     applyIntensity(slider.value);
     live = playbackMode === 'live';
     playButton.setAttribute('aria-pressed', String(live));
+    status.textContent = 'Preparing instrument...';
     try {
       await voice.ready();
       if (run !== ticket) return;
@@ -267,12 +269,18 @@
         let lastBeat = 0;
         let interval = 500;
         function playMelody() {
+          if (mapPitch !== undefined) {
+            if (mapPitch !== null) voice.play(mapPitch);
+            return;
+          }
           const intervals = [0, 2, 4, 5, 7, 9, 11, 12];
           const midi = (assignment.octave + 1) * 12 + intervals[Math.round(Number(slider.value) * 7 / 100)];
           voice.play(440 * 2 ** ((midi - 69) / 12));
         }
         function showLiveStatus() {
-          status.textContent = `${assignment.parameter} - ${assignment.instrument}: ${slider.value}%${assignment.id === 'drums' ? ` - ${bpmForValue(slider.value)} BPM` : ''}. Playing live; move the slider to change the sound.`;
+          status.textContent = mapPitch === null
+            ? 'Playing live: this map point is a rest. Choose another point to hear it.'
+            : `${assignment.parameter} - ${assignment.instrument}: ${slider.value}%${assignment.id === 'drums' ? ` - ${bpmForValue(slider.value)} BPM` : ''}. Playing live; move the slider or choose a map point to change the sound.`;
         }
         function tick() {
           if (run !== ticket) return;
@@ -336,15 +344,16 @@
         if (index < values.length) timer = setTimeout(step, assignment.id === 'drums' ? 60000 / bpmForValue(value) : 500);
         else timer = setTimeout(() => {
           if (run === ticket) { stop(); status.textContent = `${assignment.instrument} test complete.`; }
-        }, 1100);
+        }, Math.max(1100, (voice.tailSeconds || 0.95) * 1000 + 50));
       }
       step();
     } catch (error) {
       if (run === ticket) { stop(); status.textContent = `Audio could not play: ${error.message}`; }
     }
   }
-  select.addEventListener('change', stop);
+  select.addEventListener('change', () => { mapPitch = undefined; stop(); });
   slider.addEventListener('input', () => {
+    mapPitch = undefined;
     updateReadout();
     if (live) updateLive?.();
   });
@@ -355,7 +364,23 @@
   document.querySelector('#volume').addEventListener('input', () => applyIntensity());
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
   global.addEventListener('pagehide', stop);
-  global.djEarthSolo = Object.freeze({ stop });
+  global.djEarthSolo = Object.freeze({
+    stop,
+    applyMapPoint(intensity, hz) {
+      if (Number(select.value) > 1) return false;
+      if (!live) stop();
+      if (Number.isFinite(intensity)) {
+        slider.value = Math.max(0, Math.min(100, Math.round(intensity)));
+        updateReadout();
+      }
+      mapPitch = hz;
+      if (live) {
+        document.body.classList.add('is-playing');
+        updateLive?.();
+      }
+      return live;
+    }
+  });
   updateReadout();
-  if (imageUpload) trackButtons.find(button => button.dataset.trackIndex === '1').click();
+  if (imageUpload) trackButtons.find(button => button.dataset.trackIndex === '0').click();
 })(globalThis);

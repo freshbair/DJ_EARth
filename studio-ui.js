@@ -221,26 +221,10 @@
       choose: () => button.click()
     }))
   });
-  const pitchRadios = [...document.querySelectorAll('input[name="pitchMode"]')];
-  enhance(document.querySelector('#pitchPicker'), {
-    label: 'Choose pitch mode',
-    items: pitchRadios.map(radio => ({
-      label: radio.closest('label')?.textContent.trim() || radio.value,
-      selected: () => radio.checked,
-      disabled: () => radio.disabled,
-      choose() {
-        radio.checked = true;
-        radio.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    })),
-    onEnhanced() { pitchRadios[0]?.closest('fieldset')?.classList.add('picker-native-fallback'); }
-  });
-
   const syncAll = () => instances.forEach(instance => instance.sync());
   const selectionObserver = new MutationObserver(syncAll);
   const navigation = document.querySelector('.track-nav');
   if (navigation) selectionObserver.observe(navigation, { subtree: true, attributes: true, attributeFilter: ['aria-pressed', 'disabled'] });
-  pitchRadios.forEach(radio => selectionObserver.observe(radio, { attributes: true, attributeFilter: ['checked', 'disabled'] }));
   const status = document.querySelector('#status');
   if (status) selectionObserver.observe(status, { childList: true, subtree: true });
   document.addEventListener('change', syncAll);
