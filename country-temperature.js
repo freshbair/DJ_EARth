@@ -19,7 +19,12 @@
   aliases.set('congo',null);
   function resolve(text) {
     const cleaned=normalize(text).replace(/^(i am currently in|i am in|i m in|im in|i live in|my country is|i am from|in) /,'');
-    return aliases.get(cleaned) || null;
+    if(aliases.has(cleaned))return aliases.get(cleaned)||null;
+    const matches=new Set();
+    for(const [name,country] of aliases){
+      if(country && name.length>3 && (` ${cleaned} `).includes(` ${name} `))matches.add(country);
+    }
+    return matches.size===1?[...matches][0]:null;
   }
   function project(lon,lat) {
     const band=Math.min(17,Math.floor(Math.abs(lat)/5)), f=Math.abs(lat)/5-band;
@@ -55,12 +60,15 @@
     const values=country.points.map(([lon,lat])=>sample(lon,lat));
     if(values.every(v=>v===null))throw Error('I cannot read reliable sample points for that country on this reference.');
     const notes=values.map(value=>value===null?null:global.DJEarthTemperature.pitchForTemperature(value,'learned',centers,'piano'));
-    return {country,values,notes,start(){
+    return {country,values,notes,announcement:`Approximate reference-map melody for ${country.name}. Not current weather or calibrated Celsius.`,start(){
       stop();global.djEarthApp?.stop();global.djEarthSolo?.stop();
       const run=ticket;let i=0;
       function step(){
         if(run!==ticket)return;
         const j=i++%notes.length,value=values[j],note=notes[j];
+        const intensity=value===null?0:Math.round(value/6*100);
+        global.djEarthSolo?.applyMapPoint(intensity,note?.hz ?? null);
+        document.getElementById('soloValue').setAttribute('aria-valuetext',`${intensity} percent, relative map value ${value===null?'unavailable':value.toFixed(1)}`);
         currentGain=value===null?0:.1+.9*value/6;
         voice.setVolume(Number(document.getElementById('volume').value)/100*currentGain);
         if(note)voice.play(note.hz);

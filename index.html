@@ -17,8 +17,8 @@
   <script src="bass.js?v=audio-reactive-restore-1" defer></script>
   <script src="instruments.js?v=sampled-voices-1" defer></script>
   <script src="assets/tracks/night-lights-data.js?v=team-reference-2" defer></script>
-  <script src="script.js?v=night-map-local-2" defer></script>
-  <script src="solo.js?v=start-track-one-5" defer></script>
+  <script src="script.js?v=map-intensity-1" defer></script>
+  <script src="solo.js?v=map-intensity-1" defer></script>
   <script src="studio-ui.js?v=earth-album-1" defer></script>
   <script src="globe-scene.js?v=earth-album-1" defer></script>
   <script src="art-direction.js?v=earth-album-1" defer></script>
@@ -27,11 +27,11 @@
   <script src="assets/no2/model.js?v=1" defer></script>
   <script src="no2-reader.js?v=1" defer></script>
   <script src="no2-lab.js?v=1" defer></script>
-  <link rel="stylesheet" href="voice-assistant.css?v=compact-2">
   <script src="assets/voice/countries.js?v=1" defer></script>
   <script src="assets/voice/temperature-reference.js?v=1" defer></script>
-  <script src="country-temperature.js?v=1" defer></script>
-  <script src="voice-assistant.js?v=compact-2" defer></script>
+  <script src="country-temperature.js?v=reference-restored-5" defer></script>
+  <link rel="stylesheet" href="voice-assistant.css?v=compact-3">
+  <script src="voice-assistant.js?v=reference-restored-10" defer></script>
 </head>
 <body class="studio-page album-page">
   <a class="skip-link" href="#playground">Skip to the sound controls</a>
@@ -45,26 +45,32 @@
       <a class="open-studio" href="#playground">Open the studio <span aria-hidden="true">&#8599;</span></a>
     </header>
     <main class="app" id="studio">
-      <button id="djLauncher" class="dj-launcher" type="button" aria-controls="voiceAssistant" aria-expanded="false"><span aria-hidden="true">&#9835;</span> Hey DJ <span id="djMicState">Mic off</span></button>
+      <button id="djLauncher" class="dj-launcher" type="button" aria-controls="voiceAssistant" aria-expanded="false">Hey DJ <span id="djMicState">Mic off</span></button>
       <section id="voiceAssistant" class="voice-assistant" role="dialog" aria-modal="false" aria-labelledby="djVoiceTitle" hidden>
         <button id="djClose" class="dj-close" type="button" aria-label="Close assistant">&#215;</button>
         <h2 id="djVoiceTitle" tabindex="-1">Hey DJ</h2>
-        <p id="djVoiceStatus" role="status" aria-live="polite" aria-atomic="true">Say Hey DJ to start. Temperature reference only.</p>
+        <p>Say Hey DJ to hear a temperature melody for your country.</p>
+        <p id="djVoiceStatus" role="status" aria-live="polite" aria-atomic="true">Ready to help.</p>
         <div class="voice-actions">
-          <button id="djEnable" type="button" aria-pressed="false">Enable microphone</button>
+          <button id="djEnable" type="button">Enable microphone</button>
           <button id="djAsk" type="button">Ask me my country</button>
+          <button id="djWelcome" type="button">Hear introduction</button>
           <button id="djStop" type="button">Stop assistant</button>
         </div>
-        <form id="djCountryForm">
-          <label for="djCountry">Country</label><br>
-          <input id="djCountry" list="djCountries" autocomplete="country-name" required placeholder="For example, Lebanon">
-          <datalist id="djCountries"></datalist>
-          <button type="submit">Play temperature</button>
-        </form>
-        <p id="djMelody">No country melody playing.</p>
-        <details><summary>Voice and reference details</summary>
-          <p>Once microphone permission is saved, DJ tries to listen automatically while this page is visible. Your browser may require one click to enable sound or listening. Speech recognition may send audio to the browser provider.</p>
-          <p>Temperature only: six approximate locations on the country's main landmass use note groups learned from the reference image. Its relative 0-6 scale is not degrees Celsius or current weather. Geographic alignment is approximate, especially for small countries.</p>
+        <form id="djCountryForm"><label for="djCountry">Or type your country</label><input id="djCountry" list="djCountries" autocomplete="country-name" required><datalist id="djCountries"></datalist><button type="submit">Play temperature</button></form>
+        <p id="djForecast"></p>
+        <p id="djMelody">No melody playing.</p>
+        <details><summary>About this assistant</summary><p>Temperature reference only, not a live weather forecast. Country alignment is approximate. Browser microphone permission is required; speech recognition may send audio to its provider.</p></details>
+        <details><summary>Explore the source maps</summary>
+          <p>These external viewers open in a new tab. These viewers do not drive the assistant's reference-map music.</p>
+          <ul>
+            <li><a href="https://satmeteo.com/maps/temperature" target="_blank" rel="noopener">Temperature &mdash; Satmeteo</a></li>
+            <li><a href="https://zoom.earth/maps/wind-speed/#view=33.893,35.502,6z/model=icon" target="_blank" rel="noopener">Wind speed &mdash; Zoom Earth</a></li>
+            <li><a href="https://airindex.today/en/air-quality-map" target="_blank" rel="noopener">Air quality forecast &mdash; Airindex</a></li>
+            <li><a href="https://www.iqair.com/air-quality-map" target="_blank" rel="noopener">Air quality &mdash; IQAir</a></li>
+            <li><a href="https://blue-marble.de/nightlights/" target="_blank" rel="noopener">Night lights imagery &mdash; Blue Marble</a></li>
+            <li><a href="https://seatempmap.com/" target="_blank" rel="noopener">Sea temperature &mdash; SeaTempMap</a></li>
+          </ul>
         </details>
       </section>
       <section class="album-hero" aria-labelledby="albumTitle">

@@ -1,3 +1,9 @@
+# Reference playback restored
+
+Live temperature API and embedded viewer removed. Speech alternatives and automatic reference-value intensity updates are retained.
+
+
+
 # Hey DJ reference-data notes
 
 `temperature-reference.js` embeds the **unchanged** repository `earth-temperature.jpg` as a data URL so canvas sampling works when index.html is opened via file://. It is an illustrated relative 0–6 scale, not a Celsius dataset, current weather feed, or labelled supervised weather-training set.

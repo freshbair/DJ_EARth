@@ -78,6 +78,7 @@
     const spot = spots[index];
     const note = noteAt(spot);
     highlight(index);
+    syncMapIntensity(spot.rest ? null : (currentTrack === 'temperature' ? spot.temperature / 6 : spot.brightness / 255), note);
 
     if (currentTrack === 'temperature') {
       const tempStr = spot.rest ? '—' : `${spot.temperature.toFixed(1)} · ${tempTrack.temperatureLabel(spot.temperature)}`;
@@ -163,9 +164,13 @@
     }
   }
 
+  function syncMapIntensity(fraction, note) {
+    const intensity = fraction === null ? 0 : Math.round(Math.max(0, Math.min(1, fraction)) * 100);
+    return global.djEarthSolo?.applyMapPoint(intensity, note?.hz ?? null);
+  }
+
   async function previewCoordinates(x, y) {
     if (!image || loading) return;
-    global.djEarthSolo?.stop();
     stopPlayback();
     const ticket = run;
     const voice = activeVoice();
@@ -178,10 +183,11 @@
     const a = image.data[offset + 3];
     const patternIndex = Math.floor(clampedX * 8 / image.width);
 
-    let note;
+    let note, fraction;
     if (currentTrack === 'temperature') {
       const rest = tempTrack.isRestPixel(r, g, b, a);
       const temp = rest ? null : tempTrack.temperatureFromRGB(r, g, b);
+      fraction = rest ? null : temp / 6;
       const inst = 'piano';
       note = tempTrack.pitchForSpot({ rest, temperature: temp, index: patternIndex }, mode, centers, isTestPattern, inst);
       $('#activeBrightness').textContent = rest ? '—' : `${temp.toFixed(1)} · ${tempTrack.temperatureLabel(temp)}`;
@@ -191,6 +197,7 @@
     } else {
       const rest = a === 0;
       const br = rest ? null : light.brightnessFromRGB(r, g, b);
+      fraction = rest ? null : br / 255;
       note = light.pitchForSpot({ rest, brightness: br, index: patternIndex }, mode, centers, isTestPattern);
       $('#activeBrightness').textContent = rest ? '—' : String(br);
       $('#activeNote').textContent = note ? `${note.name} · ${note.pitch} · ${note.hz.toFixed(1)} Hz` : 'Rest';
@@ -198,6 +205,8 @@
       status.textContent = rest ? 'Clicked transparent pixel — rest.' : `Clicked (${clampedX}, ${clampedY}): brightness ${br}, piano: ${note.name} (${note.pitch}).`;
     }
 
+    const live = syncMapIntensity(fraction, note);
+    if (live) return;
     try {
       if (note) {
         await voice.ready();

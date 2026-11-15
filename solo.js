@@ -372,6 +372,8 @@
       if (Number.isFinite(intensity)) {
         slider.value = Math.max(0, Math.min(100, Math.round(intensity)));
         updateReadout();
+        slider.setAttribute('aria-valuetext', `${slider.value} percent`);
+        applyIntensity(slider.value);
       }
       mapPitch = hz;
       if (live) {
