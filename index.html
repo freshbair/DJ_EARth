@@ -3,133 +3,176 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DJ_EARth · Earth temperature &amp; night lights to sound</title>
-  <link rel="stylesheet" href="style.css?v=logo-1">
+  <title>DJ_EARth · The planet, on repeat</title>
+  <link rel="stylesheet" href="style.css?v=earth-studio-1">
   <script src="light-track.js?v=temp-1" defer></script>
   <script src="temperature-track.js?v=temp-1" defer></script>
   <script src="piano.js?v=temp-1" defer></script>
   <script src="bass.js?v=temp-1" defer></script>
   <script src="instruments.js?v=solo-1" defer></script>
-  <script src="script.js?v=solo-1" defer></script>
-  <script src="solo.js?v=single-note-1" defer></script>
+  <script src="script.js?v=earth-studio-1" defer></script>
+  <script src="solo.js?v=earth-studio-1" defer></script>
 </head>
-<body>
-  <main class="app">
-    <header class="header">
-      <a class="site-brand" href="index.html" aria-label="DJ EARth home">
-        <img src="assets/logo.png" alt="DJ EARth: Hear the Earth like you never did before" width="1674" height="939">
-      </a>
+<body class="studio-page">
+  <a class="skip-link" href="#studio">Skip to the studio</a>
+  <div class="studio-shell">
+    <aside class="library" aria-label="Earth track library">
+      <a class="wordmark" href="index.html" aria-label="DJ EARth home"><span class="brand-orbit" aria-hidden="true">&#9673;</span> DJ_EARth<span class="brand-dot">.</span></a>
+      <div class="library-heading"><span>THE EARTH SESSIONS</span><span>VOL. 01</span></div>
+      <p class="library-intro">Eight tracks. One planet.<br>Pick a frequency.</p>
       <nav class="track-nav" aria-label="Select planetary track">
         <button id="trackLightBtn" class="track-tab" type="button" aria-pressed="false" data-track-index="0">
-          <span class="track-tab-badge">TRACK 1</span>
-          <span class="track-tab-name"><span aria-hidden="true">&#128161;</span> Night Lights</span>
-          <span class="track-tab-desc">Brightness &rarr; Piano</span>
+          <span class="track-tab-badge">01</span><span class="track-cover cover-0" aria-hidden="true"></span>
+          <span class="track-tab-name">Night Lights</span>
+          <span class="track-tab-desc">Piano</span>
         </button>
         <button id="trackTempBtn" class="track-tab active" type="button" aria-pressed="true" data-track-index="1">
-          <span class="track-tab-badge">TRACK 2</span>
-          <span class="track-tab-name"><span aria-hidden="true">&#127777;</span> Earth Temperature</span>
-          <span class="track-tab-desc">Temperature &rarr; Harmonica</span>
+          <span class="track-tab-badge">02</span><span class="track-cover cover-1" aria-hidden="true"></span>
+          <span class="track-tab-name">Earth Temperature</span>
+          <span class="track-tab-desc">Harmonica</span>
         </button>
         <button id="trackAirBtn" class="track-tab" type="button" aria-pressed="false" data-track-index="2">
-          <span class="track-tab-badge">TRACK 3</span>
-          <span class="track-tab-name"><span aria-hidden="true">&#127787;</span> Air Quality</span>
-          <span class="track-tab-desc">Air quality &rarr; Flute</span>
+          <span class="track-tab-badge">03</span><span class="track-cover cover-2" aria-hidden="true"></span>
+          <span class="track-tab-name">Air Quality</span>
+          <span class="track-tab-desc">Flute</span>
         </button>
         <button id="trackStormsBtn" class="track-tab" type="button" aria-pressed="false" data-track-index="3">
-          <span class="track-tab-badge">TRACK 4</span>
-          <span class="track-tab-name"><span aria-hidden="true">&#9928;</span> Storms</span>
-          <span class="track-tab-desc">Storm intensity &rarr; Electric guitar</span>
+          <span class="track-tab-badge">04</span><span class="track-cover cover-3" aria-hidden="true"></span>
+          <span class="track-tab-name">Storms</span>
+          <span class="track-tab-desc">Electric guitar</span>
         </button>
         <button id="trackOceanBtn" class="track-tab" type="button" aria-pressed="false" data-track-index="4">
-          <span class="track-tab-badge">TRACK 5</span>
-          <span class="track-tab-name"><span aria-hidden="true">&#127754;</span> Ocean Currents</span>
-          <span class="track-tab-desc">Current strength &rarr; Harp</span>
+          <span class="track-tab-badge">05</span><span class="track-cover cover-4" aria-hidden="true"></span>
+          <span class="track-tab-name">Ocean Currents</span>
+          <span class="track-tab-desc">Harp</span>
         </button>
         <button id="trackWindBtn" class="track-tab" type="button" aria-pressed="false" data-track-index="5">
-          <span class="track-tab-badge">TRACK 6</span>
-          <span class="track-tab-name"><span aria-hidden="true">&#128168;</span> Wind Speed</span>
-          <span class="track-tab-desc">Wind speed &rarr; Drums</span>
+          <span class="track-tab-badge">06</span><span class="track-cover cover-5" aria-hidden="true"></span>
+          <span class="track-tab-name">Wind Speed</span>
+          <span class="track-tab-desc">Drums</span>
         </button>
         <button id="trackHurricaneBtn" class="track-tab" type="button" aria-pressed="false" data-track-index="6">
-          <span class="track-tab-badge">TRACK 7</span>
-          <span class="track-tab-name"><span aria-hidden="true">&#127744;</span> Hurricane</span>
-          <span class="track-tab-desc">Hurricane intensity &rarr; Violin</span>
+          <span class="track-tab-badge">07</span><span class="track-cover cover-6" aria-hidden="true"></span>
+          <span class="track-tab-name">Hurricane</span>
+          <span class="track-tab-desc">Violin</span>
         </button>
         <button id="trackAltitudeBtn" class="track-tab" type="button" aria-pressed="false" data-track-index="7">
-          <span class="track-tab-badge">TRACK 8</span>
-          <span class="track-tab-name"><span aria-hidden="true">&#9968;</span> Altitude</span>
-          <span class="track-tab-desc">Altitude &rarr; Bass</span>
+          <span class="track-tab-badge">08</span><span class="track-cover cover-7" aria-hidden="true"></span>
+          <span class="track-tab-name">Altitude</span>
+          <span class="track-tab-desc">Bass</span>
         </button>
       </nav>
-      <p id="trackEyebrow" class="eyebrow">DJ_EARth / SECOND TRACK</p>
-      <h1 id="trackHeading">Hear the Earth’s temperature.</h1>
-      <p id="trackIntro" class="intro">Eight places, eight harmonica notes. Scan the thermal map from left to right and hear planetary temperature variation. The higher the temperature, the higher the pitch.</p>
-      <span id="trackTag" class="track-tag">Temperature variation → harmonica · Higher temperature = higher pitch</span>
-    </header>
 
-    <section class="panel" aria-labelledby="soloTitle">
-      <h2 id="soloTitle">Test each parameter alone</h2>
-      <p>Select a track and use Play note for one sound at the current slider value, or Play live to keep playing while you adjust it. These are synthesized instrument previews; demo values are not live Earth measurements.</p>
-      <select id="soloInstrument" aria-label="Selected track instrument" hidden></select>
-      <p id="soloAssignment" class="track-tag">Temperature &rarr; Harmonica</p>
-      <label>Demo value <output id="soloValueLabel" for="soloValue">50%</output><input id="soloValue" type="range" min="0" max="100" value="50" aria-describedby="soloValueHelp"></label>
-      <p id="soloValueHelp" class="helper">Press Play live, then move the slider to hear the pitch change.</p>
-      <div class="source-actions">
-        <button id="soloNote" type="button" aria-pressed="false">Play live</button>
-        <button id="soloSingle" type="button">Play note</button>
-        <button id="soloPhrase" type="button">Play test phrase</button>
-        <button id="soloStop" type="button">Stop solo</button>
+      <div class="library-bottom">
+        <a class="site-brand" href="index.html" aria-label="DJ EARth home"><img src="assets/logo.png" alt="DJ EARth: Hear the Earth like you never did before" width="1674" height="939"></a>
+        <p>A little science.<br>A whole lot of sound.</p>
       </div>
-      <p id="soloStatus" role="status">Choose a parameter to hear its assigned instrument.</p>
-    </section>
-
+    </aside>
+    <main class="app" id="studio">
+      <div class="studio-topbar"><a class="studio-link" href="#studio">THE LISTENING ROOM</a><a href="#howItWorks">How to play <span aria-hidden="true">&#8599;</span></a><span class="session-badge"><span></span> LOCAL SESSION</span></div>
+      <header class="header session-hero">
+        <div class="hero-copy">
+          <p id="trackEyebrow" class="eyebrow">SIDE A / TRACK 02</p>
+          <h1 id="trackHeading">Feel the heat.</h1>
+          <p id="trackIntro" class="intro">Turn up the temperature. Hear the planet in a different key.</p>
+          <span id="trackTag" class="track-tag">Temperature / Harmonica</span>
+          <div class="hero-footnote"><span class="tiny-wave" aria-hidden="true">&#9585;&#9586;&#9585;&#9586;&#9585;</span> THE PLANET, ON REPEAT.</div>
+        </div>
+        <div class="record-art" aria-hidden="true">
+          <div class="record-orbit orbit-one"></div><div class="record-orbit orbit-two"></div>
+          <div class="planet-record"><div class="planet-label"></div><span class="record-spindle"></span></div>
+          <span class="record-caption">33&#8531; RPM &nbsp; / &nbsp; 1 PLANET</span>
+        </div>
+      </header>
+      <div class="studio-grid">
     <section id="trackImagePanel" class="panel" aria-labelledby="trackImageTitle" hidden>
       <div class="section-heading">
         <div>
-          <h2 id="trackImageTitle">Track reference image</h2>
+          <p class="section-kicker">01 / THE SOURCE</p><h2 id="trackImageTitle">Track reference image</h2>
           <p id="trackImageMeta"></p>
         </div>
-        <a id="trackImageSource" target="_blank" rel="noopener noreferrer">View NASA source &nearr;</a>
+        <a id="trackImageSource" target="_blank" rel="noopener noreferrer">NASA source &nearr;</a>
       </div>
       <figure class="track-image-figure">
-        <img id="trackImage" width="1024" height="576" alt="">
-        <figcaption id="trackImageCaption" class="helper"></figcaption>
-      </figure>
-      <p id="trackImageError" role="status" hidden>Image unavailable. Open the NASA source above to view it.</p>
-      <p class="helper">Image credit: NASA/Goddard Space Flight Center. Reference image only; use the demo controls above to test this instrument.</p>
-    </section>
-
-    <section class="panel source-panel" aria-labelledby="sourceTitle">
-      <div class="section-heading">
-        <div>
-          <h2 id="sourceTitle">Earth thermal map</h2>
-          <p id="sourceMeta">Global planetary temperature variation · 8 spots · 0.5s per spot</p>
-        </div>
-        <div class="source-actions">
-          <label id="uploadLabel" class="upload-button">Upload temperature map
-            <input id="imageUpload" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg">
-          </label>
-          <button id="useEarthMap" class="secondary" type="button">Use Earth thermal map</button>
-          <button id="resetPattern" class="secondary" type="button">Use test pattern</button>
-        </div>
-      </div>
       <div class="image-stage" id="imageStage">
         <canvas id="sourceCanvas" width="800" height="160" role="img" aria-label="Current image; eight scan locations are available as numbered buttons"></canvas>
         <div class="scan-line" aria-hidden="true"></div>
         <div id="spotOverlay" class="spot-overlay" role="group" aria-label="Preview a location on the image"></div>
       </div>
+        <img id="trackImage" width="1024" height="576" alt="">
+        <figcaption id="trackImageCaption" class="helper"></figcaption>
+      </figure>
+      <div class="source-actions track-image-actions">
+        <label class="upload-button">Add your own image
+          <input id="trackImageUpload" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" aria-describedby="trackImageUploadHelp">
+        </label>
+        <button id="resetTrackImage" class="secondary" type="button">Reset image</button>
+      </div>
+      <p id="trackImageUploadHelp" class="helper">Choose a PNG or JPEG for this track. Images stay in your browser for this session.</p>
+      <p id="trackImageUploadStatus" role="status"></p>
+      <p id="trackImageError" role="status" hidden>Image unavailable. Try another upload or restore the default image.</p>
       <div id="scanRoute" class="scan-route" role="group" aria-label="Eight scan locations, left to right"></div>
-      <p id="routeHelper" class="helper">Each spot samples one location across the map. Click any numbered spot, note card, or anywhere on the map to preview its temperature and pitch.</p>
-      <p id="patternNote" class="helper">The test phrase ends on high Do, one octave above the first Do. This is a musical ending for the test pattern; uploaded images follow temperature only.</p>
+      <p id="routeHelper" class="helper">Each spot samples one location across the map. Click any numbered spot, note card, or anywhere on the map to preview its mapped value and pitch.</p>
+      <p id="patternNote" class="helper">The test phrase ends on high Do, one octave above the first Do. This is a musical ending for the test pattern; uploaded images follow their mapped values.</p>
+      <p id="scanPending" class="helper" hidden>Image scanning and analysis for this track will be added later. Use the demo controls to preview its instrument.</p>
+      <div hidden>
+        <h2 id="sourceTitle"></h2><p id="sourceMeta"></p>
+        <label id="uploadLabel">Upload image<input id="imageUpload" type="file" accept="image/png,image/jpeg"></label>
+        <button id="useEarthMap" type="button">Use Earth thermal map</button>
+        <button id="resetPattern" type="button">Use test pattern</button>
+      </div>
+      <p id="trackImageCredit" class="helper">Image credit: NASA/Goddard Space Flight Center. Reference image only; use the demo controls above to test this instrument.</p>
     </section>
 
+    <section class="panel sound-deck" aria-labelledby="soloTitle">
+      <p class="section-kicker">02 / MAKE SOME NOISE</p><h2 id="soloTitle">Find your sound.</h2>
+      <p>Press play. Move the fader. Find a sound you like. These are instrument demos, not live Earth measurements.</p>
+      <div class="deck-display" aria-hidden="true"><span class="deck-disc"></span><div class="equalizer"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="deck-display-label">EARTH FREQUENCIES / SYNTH PREVIEW</span></div>
+      <select id="soloInstrument" aria-label="Selected track instrument" hidden></select>
+      <p id="soloAssignment" class="track-tag">Temperature &rarr; Harmonica</p>
+      <label class="fader-label">Intensity <output id="soloValueLabel" for="soloValue">50%</output><input id="soloValue" type="range" min="0" max="100" value="50" aria-describedby="soloValueHelp"></label>
+      <p id="soloValueHelp" class="helper">Press Play live, then move the slider to hear the pitch change.</p>
+      <div class="source-actions solo-transport">
+        <button id="soloNote" type="button" aria-pressed="false"><span aria-hidden="true">&#9654;</span> Play live</button>
+        <button id="soloSingle" type="button">One note</button>
+        <button id="soloPhrase" type="button">Play a phrase</button>
+        <button id="soloStop" type="button"><span aria-hidden="true">&#9632;</span> Stop</button>
+      </div>
+      <p id="soloStatus" role="status">Choose a parameter to hear its assigned instrument.</p>
+    </section>
+
+    <section class="panel readout-panel" aria-label="Current scan location">
+      <div class="live-readout">
+        <div><span id="metricLabel" class="label">Temperature / 6</span><output id="activeBrightness">—</output></div>
+        <div><span id="instrumentLabel" class="label">harmonica note</span><output id="activeNote">—</output></div>
+        <div><span class="label">Scan spot</span><output id="scanPosition">— / 8</output></div>
+      </div>
+      <p id="status" role="status">Ready. Play the scan or preview a location.</p>
+    </section>
+
+      </div>
+      <details id="howItWorks" class="how-to panel"><summary>Your first Earth session</summary><div class="how-to-steps"><p><b>01 / Pick a track</b>Each part of the planet has its own instrument.</p><p><b>02 / Make it yours</b>Add an image or explore the built-in source.</p><p><b>03 / Press play</b>Use the intensity fader for a demo, or Play image on tracks 1 and 2.</p></div></details>
+    <details class="panel analysis-panel" id="learningPanel">
+      <summary id="learningTitle">Behind the sound</summary>
+      <p id="learningSummary"></p>
+      <ol id="groupCenters" class="group-centers" aria-label="Learned centers, low to high"></ol>
+      <p id="learningHelper" class="helper">One-dimensional k-means learns up to seven groups from a sample of this image, ordered from low to high across Do–Si. In “Learn from image” mode, pitches align to these learned centers.</p>
+    </details>
+
+      <div id="testResult" class="test-result" role="status"></div>
+    <footer class="footer">
+      <p id="footerScaleExplanation">Temperature track: Navy (0) → Blue (1) → Cyan (2) → Green (3) → Yellow (4) → Red (5) → Maroon (6) maps to Do, Ré, Mi, Fa, Sol, La, Si. The higher the temperature, the higher the pitch.</p>
+      <p>Sonification uses local Web Audio API synthesis without external dependencies. Uploaded images remain private in your browser.</p>
+      <a href="tests.html">Audio checks</a>
+      <a href="tests-live.html">Playback checks</a>
+    </footer>
     <section class="panel controls-panel" aria-label="Scan and sound controls">
       <div class="controls">
         <div class="transport">
-          <button id="playScan" class="primary" type="button">Play scan</button>
-          <button id="stopScan" class="secondary" type="button" disabled>Stop</button>
+          <button id="playScan" class="primary" type="button"><span aria-hidden="true">&#9654;</span> Play image</button>
+          <button id="stopScan" class="secondary" type="button" disabled><span aria-hidden="true">&#9632;</span> Stop</button>
         </div>
-        <label class="volume-control"><span>Amplitude / volume</span><output id="volumeValue" for="volume">55%</output>
+        <label class="volume-control"><span>Volume</span><output id="volumeValue" for="volume">55%</output>
           <input id="volume" type="range" min="0" max="100" value="55" aria-describedby="volumeHelp">
         </label>
         <fieldset class="pitch-modes">
@@ -146,31 +189,9 @@
       <p id="volumeHelp" class="helper">Volume changes loudness only. Coldest temperatures still play Do; off-map background pixels are rests. One spot plays every 0.5 seconds.</p>
     </section>
 
-    <section class="panel readout-panel" aria-label="Current scan location">
-      <div class="live-readout">
-        <div><span id="metricLabel" class="label">Temperature / 6</span><output id="activeBrightness">—</output></div>
-        <div><span id="instrumentLabel" class="label">harmonica note</span><output id="activeNote">—</output></div>
-        <div><span class="label">Scan spot</span><output id="scanPosition">— / 8</output></div>
-      </div>
-      <p id="status" role="status">Ready. Play the scan or preview a location.</p>
-    </section>
 
-    <section class="panel" id="learningPanel" aria-labelledby="learningTitle">
-      <h2 id="learningTitle">What the model learned</h2>
-      <p id="learningSummary"></p>
-      <ol id="groupCenters" class="group-centers" aria-label="Learned centers, low to high"></ol>
-      <p id="learningHelper" class="helper">One-dimensional k-means learns up to seven groups from a sample of this image, ordered from low to high across Do–Si. In “Learn from image” mode, pitches align to these learned centers.</p>
-    </section>
-
-    <div id="testResult" class="test-result" role="status"></div>
-
-    <footer class="footer">
-      <p id="footerScaleExplanation">Temperature track: Navy (0) → Blue (1) → Cyan (2) → Green (3) → Yellow (4) → Red (5) → Maroon (6) maps to Do, Ré, Mi, Fa, Sol, La, Si. The higher the temperature, the higher the pitch.</p>
-      <p>Sonification uses local Web Audio API synthesis without external dependencies. Uploaded images remain private in your browser.</p>
-      <a href="tests.html">Run the automated checks</a>
-      <a href="tests-live.html">Run live playback checks</a>
-    </footer>
-    <noscript><p>Enable JavaScript to render the image and play the scan.</p></noscript>
-  </main>
+      <noscript><p>Enable JavaScript to load your studio and play sound.</p></noscript>
+    </main>
+  </div>
 </body>
 </html>

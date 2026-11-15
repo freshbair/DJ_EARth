@@ -16,6 +16,8 @@
     document.querySelector('#soloValueLabel').textContent = drums
       ? `${slider.value}% wind - ${bpmForValue(slider.value)} BPM`
       : `${slider.value}%`;
+    const demoReadout = document.querySelector('#activeBrightness');
+    if (demoReadout && Number(select.value) > 1) demoReadout.textContent = `${slider.value}%`;
     document.querySelector('#soloValueHelp').textContent = drums
       ? 'Higher wind speed makes the beat faster: 60-240 BPM. Move the slider while playing to change tempo.'
       : 'Move the slider to change pitch only. Playback pace stays fixed; BPM applies only to drums. Press Stop to finish.';
@@ -24,7 +26,26 @@
     select.add(new Option(`${assignment.parameter} → ${assignment.instrument}`, index));
   });
   select.value = '1';
+  const sessionCopy = [
+    ['After dark.', 'City lights. Quiet keys. Turn the brightness of our nights into a piano melody.'],
+    ['Feel the heat.', 'From cool blues to warm reds. Give the temperature of our planet a harmonica voice.'],
+    ['A breath of air.', 'Find a little space in the atmosphere. Explore air quality through the sound of a flute.'],
+    ['Make some thunder.', 'A little electricity in the air. Meet the electric guitar behind the storm track.'],
+    ['Go with the flow.', 'Ocean movement, harp strings. Find your rhythm beneath the surface.'],
+    ['Catch the wind.', 'Let the breeze set the beat. Move the fader to take your drums from slow to stormy.'],
+    ['Into the spiral.', 'Follow the energy of a hurricane through the sweeping sound of a violin.'],
+    ['Take the high road.', 'From sea level to the summits. Explore the shape of the Earth with a little bass.']
+  ];
   const trackImages = {
+    0: {
+      title: 'Night lights image', alt: 'Night lights image for brightness scanning.',
+      caption: 'Image brightness maps to piano notes. The default is a generated eight-step test pattern.'
+    },
+    1: {
+      path: 'earth-temperature.jpg', title: 'Earth temperature image',
+      alt: 'Earth thermal map for temperature scanning.',
+      caption: 'Map colors are mapped to temperature groups and harmonica notes.'
+    },
     2: {
       file: 'air-quality.png', title: 'Air quality model',
       source: 'https://svs.gsfc.nasa.gov/5533/',
@@ -68,19 +89,85 @@
     trackImage.hidden = true;
     document.querySelector('#trackImageError').hidden = false;
   });
+  const uploadedImages = new Map();
+  const uploadRequests = new Map();
+  const imageUpload = document.querySelector('#trackImageUpload');
+  const imageUploadStatus = document.querySelector('#trackImageUploadStatus');
   function showTrackImage(index) {
     const reference = trackImages[index];
     imagePanel.hidden = !reference;
     if (!reference) return;
-    document.querySelector('#trackImageTitle').textContent = reference.title;
+    const uploaded = uploadedImages.get(index);
+    const source = document.querySelector('#trackImageSource');
+    source.hidden = Boolean(uploaded) || !reference.source;
+    const credit = document.querySelector('#trackImageCredit');
+    if (credit) credit.hidden = Boolean(uploaded) || index < 2;
+    if (imageUpload) imageUpload.value = '';
+    if (imageUploadStatus) imageUploadStatus.textContent = '';
+    const reset = document.querySelector('#resetTrackImage');
+    if (reset) reset.disabled = false;
+    document.querySelector('#trackImageTitle').textContent = uploaded ? 'Your track image' : reference.title;
     document.querySelector('#trackImageMeta').textContent = `${bank.assignments[index].parameter} - ${bank.assignments[index].instrument}`;
-    document.querySelector('#trackImageSource').href = reference.source;
-    document.querySelector('#trackImageCaption').textContent = reference.caption;
+    if (reference.source) source.href = reference.source;
+    document.querySelector('#trackImageCaption').textContent = uploaded ? uploaded.name : reference.caption;
     document.querySelector('#trackImageError').hidden = true;
-    trackImage.hidden = false;
-    trackImage.alt = reference.alt;
-    trackImage.src = `assets/tracks/${reference.file}`;
+    trackImage.hidden = index < 2;
+    trackImage.alt = uploaded ? `${bank.assignments[index].parameter}: ${uploaded.name}` : reference.alt;
+    if (index > 1) trackImage.src = uploaded ? uploaded.url : `assets/tracks/${reference.file}`;
+    const help = document.querySelector('#trackImageUploadHelp');
+    if (help) help.textContent = index < 2
+      ? 'Choose a PNG or JPEG for this track. Images stay in your browser for this session. Scan the image below to hear its mapped values.'
+      : 'Choose a PNG or JPEG for this track. Images stay in your browser for this session. Image analysis is coming later; sound uses demo values.';
   }
+  imageUpload?.addEventListener('change', async () => {
+    const index = Number(select.value);
+    const file = imageUpload.files[0];
+    if (!file || !trackImages[index]) return;
+    const request = (uploadRequests.get(index) || 0) + 1;
+    uploadRequests.set(index, request);
+    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+      imageUploadStatus.textContent = 'Please choose a PNG or JPEG image.';
+      imageUpload.value = '';
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const preview = new Image();
+    try {
+      preview.src = url;
+      await preview.decode();
+      if (uploadRequests.get(index) !== request) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      const previous = uploadedImages.get(index);
+      uploadedImages.set(index, { url, name: file.name, file });
+      if (Number(select.value) === index) {
+        showTrackImage(index);
+        if (index < 2) await global.djEarthApp.uploadImage(file);
+        if (Number(select.value) === index) imageUploadStatus.textContent = index < 2
+          ? 'Image selected. See the scan status below.'
+          : 'Your image is ready for preview. Sound still uses demo values.';
+      }
+      if (previous) URL.revokeObjectURL(previous.url);
+    } catch {
+      URL.revokeObjectURL(url);
+      if (Number(select.value) === index && uploadRequests.get(index) === request) {
+        imageUploadStatus.textContent = 'This image could not be opened. Try another PNG or JPEG.';
+        imageUpload.value = '';
+      }
+    }
+  });
+  document.querySelector('#resetTrackImage')?.addEventListener('click', () => {
+    const index = Number(select.value);
+    uploadRequests.set(index, (uploadRequests.get(index) || 0) + 1);
+    const previous = uploadedImages.get(index);
+    uploadedImages.delete(index);
+    showTrackImage(index);
+    if (previous) URL.revokeObjectURL(previous.url);
+    if (index === 1) void global.djEarthApp.loadEarthPresetMap();
+    else if (index === 0) global.djEarthApp.useTestPattern();
+    imageUploadStatus.textContent = 'Default image restored.';
+  });
   const trackButtons = [...document.querySelectorAll('[data-track-index]')];
   trackButtons.forEach(button => button.addEventListener('click', () => {
     stop();
@@ -88,25 +175,53 @@
     const assignment = bank.assignments[index];
     const demo = index > 1;
     // Additional tracks use isolated demo values until their data sources are added.
-    if (demo) global.djEarthApp.setTrack('light');
+    global.djEarthApp.cancelPendingImage?.();
+    global.djEarthApp.setTrack(index === 1 ? 'temperature' : 'light');
     global.djEarthApp.stop('Ready to test the selected track.');
     select.value = String(index);
     updateReadout();
     document.body.classList.toggle('demo-track', demo);
     showTrackImage(index);
+    if (imageUpload) {
+      document.querySelector('#scanPending').hidden = !demo;
+      document.querySelector('#playScan').disabled = demo;
+      document.querySelector('#stopScan').disabled = true;
+      document.querySelectorAll('input[name="pitchMode"]').forEach(input => { input.disabled = demo; if (demo) input.checked = input.value === 'fixed'; });
+      document.querySelector('#volumeHelp').textContent = 'Volume changes loudness only. Use the demo controls above to preview the selected instrument.';
+      document.querySelector('#footerScaleExplanation').textContent = demo
+        ? 'This track uses demo values. Uploaded images are previews until image analysis is added.'
+        : 'Scan eight locations from left to right. Image values map to the selected instrument.';
+      if (demo) {
+        document.querySelector('#metricLabel').textContent = `${assignment.parameter} / demo`;
+        document.querySelector('#instrumentLabel').textContent = `${assignment.instrument} preview`;
+        document.querySelector('#activeBrightness').textContent = `${slider.value}%`;
+        document.querySelector('#activeNote').textContent = 'Use demo controls';
+        document.querySelector('#scanPosition').textContent = 'Pending';
+        document.querySelector('#status').textContent = 'Image scanning is coming later for this track.';
+        document.querySelector('#learningTitle').textContent = 'Image analysis';
+        document.querySelector('#learningSummary').textContent = 'Image analysis is coming later for this track. Your uploaded image is available for preview.';
+      } else {
+        global.djEarthApp.setMode('fixed');
+        const uploaded = uploadedImages.get(index);
+        if (uploaded) void global.djEarthApp.uploadImage(uploaded.file);
+        else if (index === 1) void global.djEarthApp.loadEarthPresetMap();
+        else global.djEarthApp.useTestPattern();
+      }
+    }
     trackButtons.forEach(tab => {
       const active = tab === button;
       tab.classList.toggle('active', active);
       tab.setAttribute('aria-pressed', String(active));
     });
-    document.querySelector('#trackEyebrow').textContent = `DJ_EARth / TRACK ${index + 1}`;
-    document.querySelector('#soloTitle').textContent = `Test ${assignment.parameter.toLowerCase()} alone`;
+    document.querySelector('#trackEyebrow').textContent = `SIDE A / TRACK ${String(index + 1).padStart(2, '0')}`;
+    document.body.dataset.track = String(index);
+    document.querySelector('#soloTitle').textContent = 'Find your sound.';
     document.querySelector('#soloAssignment').textContent = `${assignment.parameter} → ${assignment.instrument}`;
     status.textContent = `${assignment.instrument} ready. Press Play live and move the slider, or play a test phrase.`;
-    if (demo) {
-      document.querySelector('#trackHeading').textContent = `Hear the Earth's ${assignment.parameter.toLowerCase()}.`;
-      document.querySelector('#trackIntro').textContent = `Test ${assignment.parameter.toLowerCase()} with ${assignment.instrument.toLowerCase()}. Adjust the demo value or play an eight-step phrase to hear this track on its own.`;
-      document.querySelector('#trackTag').textContent = `${assignment.parameter} → ${assignment.instrument} · Demo values`;
+    {
+      document.querySelector('#trackHeading').textContent = sessionCopy[index][0];
+      document.querySelector('#trackIntro').textContent = sessionCopy[index][1];
+      document.querySelector('#trackTag').textContent = `${assignment.parameter} - ${assignment.instrument}`;
     }
   }));
   function stop() {
@@ -115,6 +230,7 @@
     live = false;
     updateLive = undefined;
     playButton.setAttribute('aria-pressed', 'false');
+    document.body.classList.remove('is-playing');
     voices.forEach(voice => voice.stopAll());
     status.textContent = 'Solo stopped. Ready to test another value or instrument.';
   }
@@ -135,6 +251,7 @@
     try {
       await voice.ready();
       if (run !== ticket) return;
+      document.body.classList.add('is-playing');
       if (live) {
         let beat = 0;
         let lastBeat = 0;
@@ -229,4 +346,5 @@
   global.addEventListener('pagehide', stop);
   global.djEarthSolo = Object.freeze({ stop });
   updateReadout();
+  if (imageUpload) trackButtons.find(button => button.dataset.trackIndex === '1').click();
 })(globalThis);

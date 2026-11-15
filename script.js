@@ -110,6 +110,7 @@
     piano.stopAll();
     bass.stopAll();
     scanning = false;
+    document.body.classList.remove('is-playing');
     highlight(-1);
     stopButton.disabled = true;
     status.textContent = message;
@@ -126,6 +127,7 @@
     try {
       await voice.ready();
       if (ticket !== run) return;
+      document.body.classList.add('is-playing');
       let index = 0;
       function step() {
         if (ticket !== run) return;
@@ -269,7 +271,7 @@
     list.replaceChildren();
 
     if (currentTrack === 'temperature') {
-      $('#learningTitle').textContent = 'What the temperature model learned';
+      $('#learningTitle').textContent = 'Image analysis';
       $('#learningSummary').textContent = centers.length
         ? `${centers.length} ${centers.length === 1 ? 'group' : 'groups'} learned from the current map. Center values are temperatures on a 0–6 scale, sorted coldest to hottest.`
         : 'No valid temperature pixels found in the training sample.';
@@ -291,7 +293,7 @@
         list.append(item);
       });
     } else {
-      $('#learningTitle').textContent = 'What the image model learned';
+      $('#learningTitle').textContent = 'Image analysis';
       $('#learningSummary').textContent = centers.length
         ? `${centers.length} ${centers.length === 1 ? 'group' : 'groups'} learned from the current image. Center values are brightness on a 0–255 scale, sorted dark to bright.`
         : 'No non-transparent pixels in the training sample. Transparent spots are rests; any other spots use the fixed scale.';
@@ -385,7 +387,7 @@
       trackLightBtn.classList.remove('active');
       trackLightBtn.setAttribute('aria-pressed', 'false');
 
-      $('#trackEyebrow').textContent = 'DJ_EARth / SECOND TRACK';
+      $('#trackEyebrow').textContent = 'DJ_EARth / TRACK 2';
       $('#trackHeading').textContent = 'Hear the Earth’s temperature.';
       $('#trackIntro').textContent = 'Eight places, eight harmonica notes. Scan the thermal map from left to right and hear planetary temperature variation. The higher the temperature, the higher the pitch.';
       $('#trackTag').textContent = 'Temperature variation → harmonica · Higher temperature = higher pitch';
@@ -529,8 +531,6 @@
   stopButton.addEventListener('click', () => stopPlayback());
   resetPatternBtn.addEventListener('click', useTestPattern);
   useEarthMapBtn.addEventListener('click', () => { void loadEarthPresetMap(); });
-  trackTempBtn.addEventListener('click', () => setTrack('temperature'));
-  trackLightBtn.addEventListener('click', () => setTrack('light'));
 
   volume.addEventListener('input', () => {
     const value = Number(volume.value);
@@ -568,6 +568,11 @@
   global.djEarthApp = Object.freeze({
     playScan, previewSpot, previewCoordinates, stop: stopPlayback,
     setMode, setTrack, setBassRegister, uploadImage, useTestPattern, loadEarthPresetMap,
+    cancelPendingImage() {
+      imageRequest++;
+      loading = false;
+      playButton.disabled = false;
+    },
     loadImageData(nextImage, name = 'Local image', isTest = false) {
       imageRequest++;
       loading = false;
