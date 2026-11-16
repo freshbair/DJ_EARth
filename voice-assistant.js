@@ -18,7 +18,7 @@
   let welcoming = false;
   let lastRetry = 0;
 
-  const introduction = 'Say hey DJ to get the weather update.';
+  const introduction = 'Say Hey DJ to hear a temperature melody for your country.';
 
   function open() {
     const assistant = $('voiceAssistant');
@@ -97,8 +97,6 @@
 
   function stop() {
     run++;
-    welcomed = true;
-    removeWelcomeRetry();
     enabled = false;
     phase = 'off';
     clearTimeout(restartTimer);
@@ -278,22 +276,22 @@
       }
       try { global.speechSynthesis.cancel(); } catch {}
       let done = false;
-      const finish = (success = false) => {
+      const finish = () => {
         if (done) return;
         done = true;
         clearTimeout(timeout);
         cancelSpeech = null;
-        resolve(success);
+        resolve();
       };
       const timeout = setTimeout(finish, 5000);
       cancelSpeech = finish;
 
       try {
-        const utterance = new global.SpeechSynthesisUtterance(text);
+        const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
         utterance.rate = 1.0;
-        utterance.onend = () => finish(true);
-        utterance.onerror = () => finish(false);
+        utterance.onend = finish;
+        utterance.onerror = finish;
         if (global.speechSynthesis.paused) {
           global.speechSynthesis.resume();
         }
@@ -428,27 +426,11 @@
     const current = run;
     suspend();
     try {
-      const spoken = await speak(introduction);
-      if (current === run && spoken) {
-        welcomed = true;
-        removeWelcomeRetry();
-      }
+      welcomed = Boolean(await speak(introduction));
     } finally {
       welcoming = false;
       if (current === run && enabled) listen();
     }
-  }
-
-  // Browsers may require a gesture before allowing speech. Retry only until
-  // the greeting succeeds, and let explicit assistant controls take priority.
-  function retryWelcome(event) {
-    if (event?.target?.closest?.('#djStop, #djClose, #djEnable, #djAsk, #djWelcome, .quick-country-btn')) return;
-    void welcome();
-  }
-
-  function removeWelcomeRetry() {
-    document.removeEventListener('pointerdown', retryWelcome);
-    document.removeEventListener('keydown', retryWelcome);
   }
 
   function primeAudio(event) {
@@ -510,11 +492,9 @@
 
   const welcomeBtn = $('djWelcome');
   if (welcomeBtn) {
-    welcomeBtn.addEventListener('click', async () => {
+    welcomeBtn.addEventListener('click', () => {
       stop();
       welcomed = false;
-      // Let an interrupted greeting finish its cleanup before replaying it.
-      await Promise.resolve();
       void welcome();
     });
   }
@@ -551,10 +531,6 @@
 
   document.addEventListener('pointerdown', primeAudio, { once: true });
   document.addEventListener('keydown', primeAudio, { once: true });
-  if (global.speechSynthesis && global.SpeechSynthesisUtterance) {
-    document.addEventListener('pointerdown', retryWelcome);
-    document.addEventListener('keydown', retryWelcome);
-  }
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
@@ -564,7 +540,6 @@
       resumeOnVisible = false;
       if (enabled && !recognizer) listen();
     }
-    if (!document.hidden) void welcome();
   });
 
   global.addEventListener('pagehide', stop);
@@ -616,6 +591,4 @@
   }
 
   void checkPermission();
-  // This deferred script runs afresh on every page load and reload.
-  void welcome();
 })(globalThis);
